@@ -1,0 +1,123 @@
+\documentclass[12pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+
+% Font w/ lualatex
+% \usepackage{fontspec}
+% \setmainfont{Jost}
+% \setsansfont{Jost}
+% \setmonofont{Fira Code}
+
+% Quotes
+\usepackage[american]{babel}
+
+% Rose Pine
+\usepackage{xcolor}
+\definecolor{fg}{HTML}{e0def4}
+\definecolor{bg}{HTML}{232136}
+\definecolor{c0}{HTML}{393552}
+\definecolor{c1}{HTML}{eb6f92}
+\definecolor{c2}{HTML}{9ccfd8}
+\definecolor{c3}{HTML}{f6c177}
+\definecolor{c4}{HTML}{3e8fb0}
+\definecolor{c5}{HTML}{c4a7e7}
+\definecolor{c6}{HTML}{ea9a97}
+\definecolor{c7}{HTML}{e0def4}
+\definecolor{c8}{HTML}{6e6a86}
+\pagecolor{bg}
+\color{fg}
+
+% Images
+% \usepackage{graphicx}
+% \usepackage{wrapfig}
+% \usepackage{float}
+
+% \usepackage{pgfplots}
+% \usepackage{multicol}
+% \usepackage{lipsum}
+
+\def\code#1{\textcolor{c2}{\texttt{#1}}}
+\def\bf#1{\textbf{#1}}
+\def\ul#1{\underline{#1}}
+\def\it#1{\textit{#1}}
+
+% Links
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=c4,
+    filecolor=magenta,
+    urlcolor=blue,
+}
+
+\title{\huge{\textit{Trickanomicon}}}
+\author{Clemson CCDC Team}
+\date{2024}
+
+\begin{document}
+
+\maketitle
+
+\pagebreak
+
+\tableofcontents
+
+\pagebreak
+
+\section{Linux}
+
+\subsection{30 Minute Plan}
+
+\begin{enumerate}
+	\item Rotate all ssh keys
+		\begin{enumerate}
+			\item Generate a new key with \code{ssh-keygen -t ed25519}
+			\item Distribute to all teammates via private Discord channels
+			\item Deploy to boxes
+			\item Remove all other authorized keys with \code{find / -name authorized\_keys}
+		\end{enumerate}
+	\item Change all ssh ports
+	\item Check user accounts in \code{/etc/passwd}
+\end{enumerate}
+
+\subsection{Monitoring}
+
+\begin{enumerate}
+	\item View all network connections \code{ss -tunlp}
+	\item View listening programs with \code{ss -lp}
+	\item View only connections with \code{ss -tu}
+	\item View active processes \code{ps -e}
+	\item Continuously see processes with \code{top}
+		\begin{enumerate}
+			\item Sort by different categories with \code{<} and \code{>}
+			\item Tree view with \code{V}
+		\end{enumerate}
+	\item Continuously see network connections with \code{watch ss -tu}
+\end{enumerate}
+
+\subsection{System Utilities}
+
+\begin{enumerate}
+	\item Start and stop processes with \code{systemctl}
+	\begin{enumerate}
+		\item Start service with \code{\bf{systemctl start} [\ul{UNIT}]}
+		\item Stop service with \code{\bf{systemctl stop} [\ul{UNIT}]}
+		\item Restart service with \code{\bf{systemctl restart} [\ul{UNIT}]}
+		\item Enable service with \code{\bf{systemctl enable} [\ul{UNIT}]}
+	\end{enumerate}
+	\item Permit and allow network connections with \code{iptables}
+	\begin{enumerate}
+		\item Default deny with \code{iptables -P INPUT DROP}
+		\item Allow port access (must choose tcp or udp) \\
+			\code{\bf{iptables -A INPUT -p tcp|udp --dport} \ul{port} \bf{-j ACCEPT}}
+		\item Allow all from interface \\
+			\code{\bf{iptables -A INPUT -i} \ul{interface} \bf{-j ACCEPT}}
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{Hunting}
+
+\begin{enumerate}
+	\item List all files with creation date, most recent first: \code{find /usr /bin /etc /var -type f -exec stat -c "\%W \%n" {} + | sort -r > files}
+\end{enumerate}
+
+\end{document}
