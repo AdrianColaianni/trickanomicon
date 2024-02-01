@@ -1,11 +1,19 @@
 \documentclass[12pt,letterpaper]{article}
 \usepackage[margin=1in]{geometry}
 
-% Font w/ lualatex
-% \usepackage{fontspec}
-% \setmainfont{Jost}
-% \setsansfont{Jost}
-% \setmonofont{Fira Code}
+
+% Font w/ xelatex
+\ifxetex
+	\usepackage{fontspec}
+	\setsansfont{Jost.ttf}[
+	BoldFont = Jost-Bold.ttf ,
+	ItalicFont = Jost-Italic.ttf ,
+	BoldItalicFont = Jost-BoldItalic.ttf]
+	\renewcommand{\familydefault}{\sfdefault}
+	\setmonofont{FiraCode Nerd Font}
+\else
+	\renewcommand{\familydefault}{\sfdefault}
+\fi
 
 % Quotes
 \usepackage[american]{babel}
