@@ -1,13 +1,13 @@
 \documentclass[12pt,letterpaper]{article}
 \usepackage[margin=1in]{geometry}
-
+\usepackage[T1]{fontenc}
 
 % Font w/ xelatex
 \ifxetex
 	\usepackage{fontspec}
 	\setsansfont{Jost.ttf}[
-	BoldFont = Jost-Bold.ttf ,
-	ItalicFont = Jost-Italic.ttf ,
+	BoldFont = Jost-Bold.ttf,
+	ItalicFont = Jost-Italic.ttf,
 	BoldItalicFont = Jost-BoldItalic.ttf]
 	\renewcommand{\familydefault}{\sfdefault}
 	\setmonofont{FiraCode Nerd Font}
@@ -126,6 +126,204 @@
 
 \begin{enumerate}
 	\item List all files with creation date, most recent first: \code{find /usr /bin /etc /var -type f -exec stat -c "\%W \%n" {} + | sort -r > files}
+\end{enumerate}
+
+\pagebreak
+
+\section{Windows}
+
+\subsection{30 Minute Plan}
+
+\begin{enumerate}
+	\item (Recommended) Install helpful system utilities.
+		\begin{enumerate}
+			\item Set up scoop package manager. \\
+				\code{Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression}
+			\item Add the required repositories. \\
+				\code{scoop bucket add sysinternals; scoop bucket add extras}
+			\item Install Sysinternals Suite and Nmap. \\
+				\code{scoop install sysinternals-suite nmap extras/vcredist}
+		\end{enumerate}
+	\item Change all authorized user account passwords except for \bf{seccdc\_black}. \\
+		\bf{You can use the following one-liner to help expedite the process:}
+		\begin{verbatim}
+		get-content "users.txt" | foreach {
+			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
+			get-random -Count 24 | % {[char]$_});
+			net user $_ $secret;
+			add-content "output.csv" "hostname,$_,$secret"
+		}
+		\end{verbatim}
+	\bf{NOTE: If in an AD environment, run above twice, once with /domain.}
+	\item Disable unauthorized user accounts on the system. \\
+		\bf{You can use the following one-liners to help expedite the process:}
+		\begin{enumerate}
+			\item Audit accounts on system: \\
+			\begin{verbatim}
+			get-localuser | foreach {
+				$expected = get-content "users.txt";
+				if ($_.Name -notin $expected) {
+					echo $_.Name; add-content "unexpected.txt" $_.Name
+				}
+			}
+			\end{verbatim}
+			\item Disable any unauthorized accounts:
+				\begin{verbatim}
+				get-content "unexpected.txt" | foreach {net user $_ /active: no}
+				\end{verbatim}
+		\end{enumerate}
+		\bf{NOTE: If in an AD environment, run above with get-aduser and /domain.}
+	\item Perform an Nmap scan on machine and note which ports should be accessible.
+	\item Once scan completes, configure Firewall.
+		\begin{enumerate}
+			\item Export current firewall policy.
+			\item Disable firewall.
+			\item Flush inbound/outbound rules.
+			\item Add a rule for RDP.
+			\item Configure additional rules as needed for scoring/outbound internet.
+			\item Re-enable firewall.
+		\end{enumerate}
+\end{enumerate}
+
+\subsection{Hardening}
+
+\begin{enumerate}
+	\item Configure NLA for RDP.
+	\item Check User Rights Assignment Settings.
+	\item Service Management:
+	\begin{enumerate}
+		\item Disable Print Spooler. \\
+			\code{Set-Service -Name "Spooler" -Status stopped -StartupType disabled}
+		\item Disable WinRM. \\
+			\code{Disable-PSRemoting -Force}; \\
+			\code{Set-Service -Name "WinRM" -Status stopped -StartupType disabled}
+		\item Configure SMB:
+		\begin{enumerate}
+			\item If SMB is unneeded (i.e. not in an AD setting), disable it entirely. \\
+			\code{Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled}
+			\item If SMB is needed, disable SMBv1. \\
+			\code{Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol} 
+		\end{enumerate}
+		\item Ensure SSH has not been compromised.
+		\begin{enumerate}
+			\item Find and remove authorized keys. \\
+				\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
+			\item Check config at \%programdata\%\textbackslash{}ssh\textbackslash{}sshd\_config file for \href{https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_server_configuration}{misconfigurations}. 
+		\end{enumerate}
+	\end{enumerate}
+\end{enumerate}
+
+\pagebreak
+
+\subsection{Monitoring}
+
+\begin{enumerate}
+	\item View all network connections with \code{netstat -aonb}. For a live view, use TCPView.
+	\item View running processes in the details pane of Task Manager or via Process Explorer.
+	\item View all connected Named Pipes / SMB Shares with \code{net use}.
+	\item View all connected sessions with \code{qwinsta}.
+	\item To get an insight into Powershell activity, enable Powershell Block Logging/Transcription. \\
+		\code{Administrative Templates > Windows Components > Windows Powershell}
+	\item For a live overview of system activity, configure Sysmon.
+	\begin{enumerate}
+		\item To install Sysmon, run \code{sysmon -i <PATH TO CONFIG FILE>}.
+		\item Logs are sent to Applications and Services Logs > Microsoft > Windows > Sysmon.
+		\item If you want to update your config file, run \code{sysmon -c <PATH TO NEW CONFIG>}. 
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{Hunting}
+
+\begin{enumerate}
+	\item Install Malwarebytes and run a system scan. It can be installed silently with: \\
+		\code{curl https://downloads.malwarebytes.com/file/mb-windows -OutFile "MBSetup.exe"; .\textbackslash{}MBSetup.exe /VERYSILENT /NORESTART}
+	\item You can scan the system for unsigned dlls with \code{listdlls -u}.
+	\item AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
+	\item The Autoruns utility can be used to find potential persistence mechanisms. The Task Scheduler should also be checked.
+	\item You can use BLUESPAWN to aid in hunting. It is a complete EDR solution built for CCDC.
+	\begin{enumerate}
+		\item It can be obtained from \href{https://github.com/ION28/BLUESPAWN/releases/download/v0.5.1-alpha/BLUESPAWN-client-x64.exe}{here}.
+		\item Basic usage is as follows:
+		\begin{enumerate}
+			\item BLUESPAWN-client-x64.exe --mitigate compares the system to a secure baseline.
+			\item BLUESPAWN-client-x64.exe --hunt does a single-pass scan for malicious activity.
+			\item BLUESPAWN-client-x64.exe --monitor is like hunt but alerts on new activity.
+		\end{enumerate}
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{Response}
+
+\begin{enumerate}
+	\item Kill a connected session with \code{rwinsta <SESSION ID>}.
+	\item Kill a process in Task Manager/Process Explorer or with \code{taskkill /f /pid <PID>}.
+\end{enumerate}
+
+\pagebreak
+
+\subsection{Installing the ELK Stack}
+
+\begin{enumerate}
+	\item Install the prerequisites	using manually or using scoop (see below). \\
+	\ul{If using scoop, apps are installed in \$HOME/scoop/apps/<APPNAME>/current.}
+		\begin{enumerate}
+			\item Add the `extras` repository with \code{scoop bucket add extras}.
+			\item Add the `java' repository with \code{scoop bucket add java}.
+			\item Install elasticsearch and kibana with \code{scoop install elasticsearch kibana openjdk}.
+			\item Notepad++ (notepadplusplus) is recommended for editing the yml files.
+		\end{enumerate}
+	\item Add the following lines to \code{<ELASTICSEARCH DIR>/config/elasticsearch.yml}:
+		\begin{verbatim}
+			xpack.security.enabled: true
+			xpack.security.enrollment.enabled: true
+			cluster.initial_master_nodes: ["elk"]
+			http.host: [\_local\_, \_site\_]		
+		\end{verbatim}
+	\item Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
+	\item Reset passwords for the kibana\_system and elastic accounts.
+		\begin{enumerate}
+			\item \code{<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u kibana-system}
+			\item \code{<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u elastic}
+		\end{enumerate}
+	\bf{SAVE THESE PASSWORDS SOMEWHERE.}
+	\item Add the following lines to \code{<KIBANA DIR>/config/kibana.yml}:
+		\begin{verbatim}
+			server.host: "0.0.0.0"
+			server.publicBaseUrl: "http://localhost"
+			elasticsearch.hosts: ["http://localhost:9200"]
+			elasticsearch.username: "kibana\_system"
+			elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
+			elasticsearch.ssl.verificationMode: none
+		\end{verbatim}
+	\item Stop the elasticsearch executable and install it as a service with: \\
+		\code{<ELASTICSEARCH DIR>/bin/elasticsearch-service.bat install} 
+	\item Start the elasticsearch service with \code{start-service elasticsearch-service-x64}
+	\item Start kibana in a Powershell prompt. It will take a moment to initialize.
+	\item You may now log into kibana at localhost:5601 with the elastic account.
+\end{enumerate}
+
+\pagebreak
+
+\subsection{Configuring Winlogbeat}
+
+\begin{enumerate}
+	\item You can obtain Winlogbeat from \href{https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-8.12.0-windows-x86_64.zip}{here}.
+	\item Extract the Winlogbeat directory to C:\textbackslash{}Program Files.
+	\item Edit the winlogbeat.yml file as needed for environment and log forwarding.
+	\item Install Winlogbeat as a service with \code{.\textbackslash{}install-service-winlogbeat.ps1}
+	\item Load the prebuilt Winlogbeat assets with \code{.\textbackslash{}winlogbeat.exe setup -e}.
+	\item Start the Winlogbeat service with \code{start-service winlogbeat}
+\end{enumerate}
+
+\pagebreak
+
+\section{Service Configuration}
+
+\subsection{MySQL}
+
+\begin{enumerate}
+	\item Change passwords for any non-scored users. \\
+		\code{ALTER USER '<USERNAME>'@localhost IDENTIFIED BY '<NEW PASSWORD>}
 \end{enumerate}
 
 \end{document}
