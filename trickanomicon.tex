@@ -323,7 +323,19 @@
 
 \begin{enumerate}
 	\item Change passwords for any non-scored users. \\
-		\code{ALTER USER '<USERNAME>'@localhost IDENTIFIED BY '<NEW PASSWORD>}
+		\code{SELECT user FROM mysql.user;} \\
+		\code{ALTER USER '<USERNAME>'@localhost IDENTIFIED BY '<NEW PASSWORD>';}
+	\item Prepare a database backup and store somewhere safe on the system.
+	\begin{enumerate}
+		\item Backup: \code{mysqldump -u <USERNAME> -p > <PLACE TO STORE BACKUP>}
+		\item Restore: \code{mysql -u <USERNAME> -p < <BACKUP LOCATION>} \\
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{FTP}
+
+\begin{enumerate}
+	\item
 \end{enumerate}
 
 \end{document}
