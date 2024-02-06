@@ -54,7 +54,7 @@
     colorlinks=true,
     linkcolor=c4,
     filecolor=magenta,
-    urlcolor=blue,
+    urlcolor=cyan,
 }
 
 \title{\huge{\textit{Trickanomicon}}}
@@ -141,11 +141,11 @@
 				\code{Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression}
 			\item Add the required repositories. \\
 				\code{scoop bucket add sysinternals; scoop bucket add extras}
-			\item Install Sysinternals Suite and Nmap. \\
+			\item Install \href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite} and Nmap. \\
 				\code{scoop install sysinternals-suite nmap extras/vcredist}
 		\end{enumerate}
-	\item Change all authorized user account passwords except for \bf{seccdc\_black}. \\
-		\bf{You can use the following one-liner to help expedite the process:}
+	\item Change all authorized user account passwords (including your own) except for \bf{seccdc\_black}. \\
+		\bf{The following one-liner will reset account passwords and output them to a file:}
 		\begin{verbatim}
 		get-content "users.txt" | foreach {
 			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
@@ -154,19 +154,20 @@
 			add-content "output.csv" "hostname,$_,$secret"
 		}
 		\end{verbatim}
-	\bf{NOTE: If in an AD environment, run above twice, once with /domain.}
+	\bf{NOTE: If in an AD environment, run for domain users with /domain.} \\
+	\bf{NOTE: MOVE THIS FILE TO YOUR LOCAL MACHINE AND FORMAT APPROPRIATELY.}
 	\item Disable unauthorized user accounts on the system. \\
 		\bf{You can use the following one-liners to help expedite the process:}
 		\begin{enumerate}
-			\item Audit accounts on system: \\
-			\begin{verbatim}
-			get-localuser | foreach {
-				$expected = get-content "users.txt";
-				if ($_.Name -notin $expected) {
-					echo $_.Name; add-content "unexpected.txt" $_.Name
+			\item Audit accounts on system: 
+				\begin{verbatim}
+				get-localuser | foreach {
+					$expected = get-content "users.txt";
+					if ($_.Name -notin $expected) {
+						echo $_.Name; add-content "unexpected.txt" $_.Name
+					}
 				}
-			}
-			\end{verbatim}
+				\end{verbatim}
 			\item Disable any unauthorized accounts:
 				\begin{verbatim}
 				get-content "unexpected.txt" | foreach {net user $_ /active: no}
@@ -176,12 +177,18 @@
 	\item Perform an Nmap scan on machine and note which ports should be accessible.
 	\item Once scan completes, configure Firewall.
 		\begin{enumerate}
-			\item Export current firewall policy.
-			\item Disable firewall.
-			\item Flush inbound/outbound rules.
-			\item Add a rule for RDP.
-			\item Configure additional rules as needed for scoring/outbound internet.
-			\item Re-enable firewall.
+			\item Export current firewall policy. \\
+				\code{netsh advfirewall export "C:\textbackslash{}firewallrules.wfw}
+			\item Disable firewall. \\
+				\code{netsh advfirewall set allprofiles state off}
+			\item Flush inbound/outbound rules. \\
+				\code{Remove-NetFirewallRule}
+			\item Add a rule for RDP. \\
+				\code{New-NetFirewallRule -DisplayName "Inbound 3389" -Direction Inbound -LocalPort 3389 -Protocol TCP -Action Allow}
+			\item Configure additional rules as needed for scoring/outbound internet. \\
+				\code{\$port = 1234; New-NetFirewallRule -DisplayName "Inbound \$port" -Direction Inbound -LocalPort \$port -Protocol TCP -Action Allow}
+			\item Re-enable firewall. \\
+				\code{netsh advfirewall set allprofiles state on}
 		\end{enumerate}
 \end{enumerate}
 
@@ -189,7 +196,6 @@
 
 \begin{enumerate}
 	\item Configure NLA for RDP.
-	\item Check User Rights Assignment Settings.
 	\item Service Management:
 	\begin{enumerate}
 		\item Disable Print Spooler. \\
@@ -200,9 +206,9 @@
 		\item Configure SMB:
 		\begin{enumerate}
 			\item If SMB is unneeded (i.e. not in an AD setting), disable it entirely. \\
-			\code{Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled}
+				\code{Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled}
 			\item If SMB is needed, disable SMBv1. \\
-			\code{Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol} 
+				\code{Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol} 
 		\end{enumerate}
 		\item Ensure SSH has not been compromised.
 		\begin{enumerate}
@@ -224,7 +230,7 @@
 	\item View all connected sessions with \code{qwinsta}.
 	\item To get an insight into Powershell activity, enable Powershell Block Logging/Transcription. \\
 		\code{Administrative Templates > Windows Components > Windows Powershell}
-	\item For a live overview of system activity, configure Sysmon.
+	\item For an overview of system activity, configure Sysmon with \href{https://github.com/D42H5/cyber_comp_resources/blob/main/sysmonconfig-export-modified-2-2-24.xml}{this config}.
 	\begin{enumerate}
 		\item To install Sysmon, run \code{sysmon -i <PATH TO CONFIG FILE>}.
 		\item Logs are sent to Applications and Services Logs > Microsoft > Windows > Sysmon.
@@ -277,7 +283,7 @@
 			xpack.security.enabled: true
 			xpack.security.enrollment.enabled: true
 			cluster.initial_master_nodes: ["elk"]
-			http.host: [\_local\_, \_site\_]		
+			http.host: [_local_, _site_]		
 		\end{verbatim}
 	\item Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
 	\item Reset passwords for the kibana\_system and elastic accounts.
@@ -291,7 +297,7 @@
 			server.host: "0.0.0.0"
 			server.publicBaseUrl: "http://localhost"
 			elasticsearch.hosts: ["http://localhost:9200"]
-			elasticsearch.username: "kibana\_system"
+			elasticsearch.username: "kibana_system"
 			elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
 			elasticsearch.ssl.verificationMode: none
 		\end{verbatim}
