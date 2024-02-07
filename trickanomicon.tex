@@ -73,18 +73,20 @@
 
 \section{Linux}
 
+\bf{Do not touch the} \code{seccdc\_black} \bf{account}
+
 \subsection{30 Minute Plan}
 
 \begin{enumerate}
 	\item Rotate all ssh keys
 		\begin{enumerate}
-			\item Generate a new key with \code{ssh-keygen -t ed25519}
-			\item Distribute to all teammates via private Discord channels
-			\item Deploy to boxes
+			\item Generate the ssh key from Adrian
+			\item Deploy with \code{\bf{ssh-copy-id -i} \ul{identity\_file} [\ul{user}\@\ul{hostname}]}
 			\item Remove all other authorized keys with \code{find / -name authorized\_keys}
 		\end{enumerate}
-	\item Change all ssh ports
-	\item Check user accounts in \code{/etc/passwd}
+	\item Check accounts and reset password \bf{ASAP}
+	\item Lock unnecessary accounts with \code{\bf{usermod -L} \ul{LOGIN}} and if nothing goes red, delete account with \code{\bf{userdel -r} \ul{LOGIN}}
+	\item Find listening services with \code{ss -lp} and investigate strange ones
 \end{enumerate}
 
 \subsection{Monitoring}
@@ -99,7 +101,12 @@
 			\item Sort by different categories with \code{<} and \code{>}
 			\item Tree view with \code{V}
 		\end{enumerate}
-	\item Continuously see network connections with \code{watch ss -tu}
+	\item Watch \bf{all} network traffic with the following (this is a fire hose)
+		\begin{enumerate}
+			\item Record traffic with \code{iptables -I INPUT -j LOG}
+			\item Watch logs with \code{journalctl -kf --grep="IN=.*"}
+		\end{enumerate}
+	\item Watch dbus with \code{dbus -w}
 \end{enumerate}
 
 \subsection{System Utilities}
@@ -120,12 +127,29 @@
 		\item Allow all from interface \\
 			\code{\bf{iptables -A INPUT -i} \ul{interface} \bf{-j ACCEPT}}
 	\end{enumerate}
+	\item Schedule tasks with cron
+	\begin{enumerate}
+		\item View with \code{crontab -e}
+		\item Obliterate user's crontab with \code{crontab -r}
+	\end{enumerate}
 \end{enumerate}
 
 \subsection{Hunting}
 
 \begin{enumerate}
 	\item List all files with creation date, most recent first: \code{find /usr /bin /etc /var -type f -exec stat -c "\%W \%n" {} + | sort -r > files}
+	\item List all files created after set date, most recent first: \code{find /usr /bin /etc /var -type f -newermt \ul{YYYY-MM-DD} -exec stat -c "\%W \%n" {} + | sort -r > files}
+\end{enumerate}
+
+\subsection{Duncan's Magic}
+
+\begin{enumerate}
+	\item Remove users listed in disable.txt \\
+		\code{while read user;do sudo usermod -L \$user;done<disable.txt}
+	\item Reset password from ./users.txt AND output updated passwords to ./changed\_passwords.txt (make sure no ./changed\_passwords.txt exists in directory before hand) \\
+		\code{name='NAME HERE' while read user; do password=`tr -dc 'A-Za-z0-9!@\#\$\%' </dev/urandom | head -c 24; echo`; echo "\$name,\$user,\$password" >> changed\_passwords.txt; echo "\$user:\$password" | sudo chpasswd; done < users.txt}
+	\item Find users not in ./known\_users.txt \\
+		\code{awk -F: '\{if(\$3>=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd|sort|comm -13 known\_users.txt ->extra\_users.txt}
 \end{enumerate}
 
 \end{document}
