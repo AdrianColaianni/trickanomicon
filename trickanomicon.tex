@@ -80,7 +80,7 @@
 		\begin{enumerate}
 			\item Generate a new key with \code{ssh-keygen -t ed25519}
 			\item Distribute to all teammates via private Discord channels
-			\item Deploy to boxes
+			\item Deploy to boxes \hyperref[sec:Monitoring]{hi there}
 			\item Remove all other authorized keys with \code{find / -name authorized\_keys}
 		\end{enumerate}
 	\item Change all ssh ports
@@ -88,6 +88,7 @@
 \end{enumerate}
 
 \subsection{Monitoring}
+\label{sec:Monitoring}
 
 \begin{enumerate}
 	\item View all network connections \code{ss -tunlp}
@@ -128,6 +129,27 @@
 	\item List all files with creation date, most recent first: \code{find /usr /bin /etc /var -type f -exec stat -c "\%W \%n" {} + | sort -r > files}
 \end{enumerate}
 
+\subsection{Hardening}
+
+You should remount /tmp and /var/tmp to be non-executable.
+\begin{enumerate}
+	\item If /tmp and /var/tmp are already mounted, you can simply do:
+	\begin{verbatim}
+	mount -o remount,nodev,nosuid,noexec /tmp
+	mount -o remount,nodev,nosuid,noexec /var/tmp
+	\end{verbatim}
+	\item If they haven't already been mounted, edit /etc/fstab to include:
+	\begin{verbatim}
+	tmpfs    /tmp    tmpfs    defaults,noatime,nosuid,nodev,noexec,mode=1777   0  0
+	tmpfs    /var/tmp    tmpfs    defaults,noatime,nosuid,nodev,noexec,mode=1777   0  0
+	\end{verbatim}
+	\item Once /etc/fstab has been updated, you can run:
+	\begin{verbatim}
+	mount -o nodev,nosuid,noexec /tmp
+	mount -o nodev,nosuid,noexec /var/tmp
+	\end{verbatim}
+\end{enumerate}
+
 \pagebreak
 
 \section{Windows}
@@ -135,29 +157,17 @@
 \subsection{30 Minute Plan}
 
 \begin{enumerate}
-	\item (Recommended) Install helpful system utilities.
-		\begin{enumerate}
-			\item Set up scoop package manager. \\
-				\code{Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser; Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression}
-			\item Add the required repositories. \\
-				\code{scoop bucket add sysinternals; scoop bucket add extras}
-			\item Install \href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite} and Nmap. \\
-				\code{scoop install sysinternals-suite nmap extras/vcredist}
-		\end{enumerate}
-	\item Change all authorized user account passwords (including your own) except for \bf{seccdc\_black}. \\
-		\bf{The following one-liner will reset account passwords and output them to a file:}
+	\item (Recommended) Install href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite} .
+	\item Perform an Nmap scan on machine and note which ports should be accessible.
+	\item Change all user account passwords (including your own) except for \bf{seccdc\_black}. \\
+		\bf{The following one-liner will reset passwords based on the output files:}
 		\begin{verbatim}
-		get-content "users.txt" | foreach {
-			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-			get-random -Count 24 | % {[char]$_});
-			net user $_ $secret;
-			add-content "output.csv" "hostname,$_,$secret"
-		}
+		import-csv "Team25_$(hostname)-SSH_PWD.csv" -Header "host","user","pass" |
+		foreach {net user $_.user $_.pass};
+		del "Team25_$(hostname)-SSH_PWD.csv"
 		\end{verbatim}
-	\bf{NOTE: If in an AD environment, run for domain users with /domain.} \\
-	\bf{NOTE: MOVE THIS FILE TO YOUR LOCAL MACHINE AND FORMAT APPROPRIATELY.}
-	\item Disable unauthorized user accounts on the system. \\
-		\bf{You can use the following one-liners to help expedite the process:}
+	\item Disable (or delete) unauthorized user accounts on the system. \\
+	\bf{DO NOT DISABLE seccdc\_black AND YOUR USER ACCOUNT}
 		\begin{enumerate}
 			\item Audit accounts on system: 
 				\begin{verbatim}
@@ -168,29 +178,34 @@
 					}
 				}
 				\end{verbatim}
-			\item Disable any unauthorized accounts:
+			\item Disable unauthorized accounts:
 				\begin{verbatim}
-				get-content "unexpected.txt" | foreach {net user $_ /active: no}
+				get-content "unexpected.txt" | foreach {net user $_ /active:no}
 				\end{verbatim}
 		\end{enumerate}
-		\bf{NOTE: If in an AD environment, run above with get-aduser and /domain.}
-	\item Perform an Nmap scan on machine and note which ports should be accessible.
-	\item Once scan completes, configure Firewall.
+	\item Find and remove authorized SSH keys. \\
+		\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
+	\item Once Nmap scan completes, configure Firewall.
 		\begin{enumerate}
 			\item Export current firewall policy. \\
-				\code{netsh advfirewall export "C:\textbackslash{}firewallrules.wfw}
+				\code{netsh advfirewall export "C:\textbackslash{}rules.wfw"}
 			\item Disable firewall. \\
 				\code{netsh advfirewall set allprofiles state off}
 			\item Flush inbound/outbound rules. \\
 				\code{Remove-NetFirewallRule}
-			\item Add a rule for RDP. \\
-				\code{New-NetFirewallRule -DisplayName "Inbound 3389" -Direction Inbound -LocalPort 3389 -Protocol TCP -Action Allow}
-			\item Configure additional rules as needed for scoring/outbound internet. \\
-				\code{\$port = 1234; New-NetFirewallRule -DisplayName "Inbound \$port" -Direction Inbound -LocalPort \$port -Protocol TCP -Action Allow}
-			\item Re-enable firewall. \\
+			\item Add rules for RDP (svchost.exe 3389) and SSH (sshd.exe 22). \\
+			\code{\$port = <PORT>; New-NetFirewallRule -DisplayName "Inbound \$port" ` \\
+			-Direction Inbound -LocalPort \$port -Protocol TCP ` \\
+			-Action Allow -Program "Path\textbackslash{}To\textbackslash{}Executable"}
+			\item Configure additional rules as needed for scoring/internet (DNS: 53, HTTP: 80/443).
+			\item Re-enable firewall to block inbound and outbound (allow outbound on AD). \\
+				\code{netsh advfirewall set allprofiles firewallpolicy blockinbound blockoutbound}
 				\code{netsh advfirewall set allprofiles state on}
 		\end{enumerate}
+	\bf{NOTE: Rules should ideally specify applications and source IPs.}
 \end{enumerate}
+
+\pagebreak
 
 \subsection{Hardening}
 
@@ -210,16 +225,13 @@
 			\item If SMB is needed, disable SMBv1. \\
 				\code{Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol} 
 		\end{enumerate}
-		\item Ensure SSH has not been compromised.
-		\begin{enumerate}
-			\item Find and remove authorized keys. \\
-				\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
-			\item Check config at \%programdata\%\textbackslash{}ssh\textbackslash{}sshd\_config file for \href{https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_server_configuration}{misconfigurations}. 
-		\end{enumerate}
 	\end{enumerate}
-\end{enumerate}
+	\item Group Policy:
+	\begin{enumerate}
+		\item Check User Rights Assignment
+	\end{enumerate}
 
-\pagebreak
+\end{enumerate}
 
 \subsection{Monitoring}
 
@@ -236,13 +248,21 @@
 		\item Logs are sent to Applications and Services Logs > Microsoft > Windows > Sysmon.
 		\item If you want to update your config file, run \code{sysmon -c <PATH TO NEW CONFIG>}. 
 	\end{enumerate}
+	\item You can view system events with the Event Viewer or Nirsoft's \href{https://www.nirsoft.net/utils/fulleventlogview-x64.zip}{EventLogViewer}.
+\end{enumerate}
+
+\subsection{Response}
+
+\begin{enumerate}
+	\item Kill a connected session with \code{rwinsta <SESSION ID>}.
+	\item Kill a process in Task Manager/Process Explorer or with \code{taskkill /f /pid <PID>}.
 \end{enumerate}
 
 \subsection{Hunting}
 
 \begin{enumerate}
-	\item Install Malwarebytes and run a system scan. It can be installed silently with: \\
-		\code{curl https://downloads.malwarebytes.com/file/mb-windows -OutFile "MBSetup.exe"; .\textbackslash{}MBSetup.exe /VERYSILENT /NORESTART}
+	\item Install \href{https://downloads.malwarebytes.com/file/mb-windows}{Malwarebytes} and run a system scan. It can be installed silently with: \\
+		\code{.\textbackslash{}MBSetup.exe /VERYSILENT /NORESTART}
 	\item You can scan the system for unsigned dlls with \code{listdlls -u}.
 	\item AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
 	\item The Autoruns utility can be used to find potential persistence mechanisms. The Task Scheduler should also be checked.
@@ -258,11 +278,34 @@
 	\end{enumerate}
 \end{enumerate}
 
-\subsection{Response}
+\pagebreak
+
+\subsection{Considerations for Active Directory}
+
+The below ports are needed for Active Directory to operate:
+\begin{verbatim}
+	53 TCP/UDP: DNS
+	88 TCP/UDP: Kerberos
+	123 TCP: NTP
+	135 TCP: NetBIOS
+	138,139 TCP/UDP: File Replication
+	389,636 TCP: LDAP & LDAPS
+	445 TCP: SMB
+	464 TCP: Kerberos password change
+	3268,3269 TCP: Global Catalog LDAP & LDAPS
+\end{verbatim}
+\bf{These should be allowed inbound and outbound on a DC and outbound on a DM.}
 
 \begin{enumerate}
-	\item Kill a connected session with \code{rwinsta <SESSION ID>}.
-	\item Kill a process in Task Manager/Process Explorer or with \code{taskkill /f /pid <PID>}.
+	\item Many of the above steps can be done across multiple machines via Group Policy.
+	\item The krbtgt password should be reset.
+	\item The Domain Administrators group should have minimum membership.
+	\item Kerberos authentication attempts should be monitored.
+	\item You can force a reset of domain group policy with the below commands:
+	\begin{verbatim}
+	dcgpofix /target:both
+	gpupdate /force
+	\end{verbatim}
 \end{enumerate}
 
 \pagebreak
@@ -329,12 +372,15 @@
 
 \begin{enumerate}
 	\item Change passwords for any non-scored users. \\
-		\code{SELECT user FROM mysql.user;} \\
-		\code{ALTER USER '<USERNAME>'@localhost IDENTIFIED BY '<NEW PASSWORD>';}
-	\item Prepare a database backup and store somewhere safe on the system.
+		\code{SELECT User, Host FROM mysql.user;} \\
+		\code{ALTER USER '<USERNAME>'@<HOST> IDENTIFIED BY '<NEW PASSWORD>';}
+	\item Drop unauthorized users. \\
+		\code{SELECT User, Host FROM mysql.user;} \\	
+		\code{DROP USER '<USERNAME>'@<HOST>; }
+	\item Prepare a database backup and store somewhere safe \bf{off the system}.
 	\begin{enumerate}
-		\item Backup: \code{mysqldump -u <USERNAME> -p > <PLACE TO STORE BACKUP>}
-		\item Restore: \code{mysql -u <USERNAME> -p < <BACKUP LOCATION>} \\
+		\item Backup: \code{mysqldump -u <USERNAME> -p --all-databses > <BACKUP PATH>}
+		\item Restore: \code{mysql -u <USERNAME> -p < <BACKUP PATH>} \\
 	\end{enumerate}
 \end{enumerate}
 
@@ -343,16 +389,49 @@
 \bf{ANONYMOUS ACCESS CANNOT BE DISABLED.}
 
 \begin{enumerate}
-	\item Manage anonymous permissions to only allow reads/gets.
+	\item On Windows, you will interact with the IIS console to manage FTP.
+	\item On Linux, you will interact with /etc/vsftpd.conf (probably).
+	\item Manage anonymous permissions to only allow reads (and writes if needed).
 	\item Restrict access to non-shared directories from anonymous users.
+	\item Prevent executables from running in the shared directory.
 \end{enumerate}
 
-\subsection{HTTP}
+\subsection{SSH}
 
 \begin{enumerate}
-	\item Ensure that directory listing is disabled.
-	\item Check web server directory for backdoors.
-	\item (If applicable) Change passwords for user accounts.
+	\item Check the SSH config file for potential misconfigurations.
+	\begin{enumerate}
+		\item `PermitRootLogin` should be set to `no`
+		\item `PermitEmptyPasswords` should be set to `no`
+	\end{enumerate}
+	\item You can tunnel a port over ssh with the following syntax: \\
+		\code{ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>}
 \end{enumerate}
+
+\subsection{Web Servers}
+
+\begin{enumerate}
+	\item With IIS, some hardening can be automated with \href{https://github.com/ufsitblue/blue/blob/main/dsu_blue/windows/IIS.ps1}{this script}.
+	\item (If applicable) Change passwords for user accounts on website.
+	\item Ensure that directory listing is disabled.
+	\item Check web server directory for php webshells.
+	\begin{enumerate}
+		\item Webshells are likely to have malicious phrases like exec in the php file.
+		\item You can minimize the possibility of this attack by disabling the phrases outright.
+		\item Run php --ini to list all of the config files currently loaded into php.
+		\item Add the following lines to the end of each config file:
+	\end{enumerate}	
+\end{enumerate}
+
+\begin{verbatim}
+# the below needs to be on one line
+disable_functions=exec,passthru,shell_exec,system,proc_open,
+popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
+
+# disable file uploads if they aren't needed
+file_uploads=off
+allow_url_fopen=off
+allow_url_include=off
+\end{verbatim}
 
 \end{document}

@@ -4,15 +4,18 @@
 \contentsline {subsection}{\numberline {1.2}Monitoring}{3}{subsection.1.2}%
 \contentsline {subsection}{\numberline {1.3}System Utilities}{3}{subsection.1.3}%
 \contentsline {subsection}{\numberline {1.4}Hunting}{4}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}Hardening}{4}{subsection.1.5}%
 \contentsline {section}{\numberline {2}Windows}{5}{section.2}%
 \contentsline {subsection}{\numberline {2.1}30 Minute Plan}{5}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Hardening}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.2}Hardening}{7}{subsection.2.2}%
 \contentsline {subsection}{\numberline {2.3}Monitoring}{7}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Hunting}{7}{subsection.2.4}%
-\contentsline {subsection}{\numberline {2.5}Response}{7}{subsection.2.5}%
-\contentsline {subsection}{\numberline {2.6}Installing the ELK Stack}{8}{subsection.2.6}%
-\contentsline {subsection}{\numberline {2.7}Configuring Winlogbeat}{9}{subsection.2.7}%
-\contentsline {section}{\numberline {3}Service Configuration}{10}{section.3}%
-\contentsline {subsection}{\numberline {3.1}MySQL}{10}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}FTP}{10}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}HTTP}{10}{subsection.3.3}%
+\contentsline {subsection}{\numberline {2.4}Response}{7}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Hunting}{8}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}Considerations for Active Directory}{9}{subsection.2.6}%
+\contentsline {subsection}{\numberline {2.7}Installing the ELK Stack}{10}{subsection.2.7}%
+\contentsline {subsection}{\numberline {2.8}Configuring Winlogbeat}{11}{subsection.2.8}%
+\contentsline {section}{\numberline {3}Service Configuration}{12}{section.3}%
+\contentsline {subsection}{\numberline {3.1}MySQL}{12}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}FTP}{12}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}SSH}{12}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Web Servers}{13}{subsection.3.4}%
