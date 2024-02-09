@@ -20,19 +20,34 @@
 
 % Rose Pine
 \usepackage{xcolor}
-\definecolor{fg}{HTML}{e0def4}
-\definecolor{bg}{HTML}{232136}
-\definecolor{c0}{HTML}{393552}
-\definecolor{c1}{HTML}{eb6f92}
-\definecolor{c2}{HTML}{9ccfd8}
-\definecolor{c3}{HTML}{f6c177}
-\definecolor{c4}{HTML}{3e8fb0}
-\definecolor{c5}{HTML}{c4a7e7}
-\definecolor{c6}{HTML}{ea9a97}
-\definecolor{c7}{HTML}{e0def4}
-\definecolor{c8}{HTML}{6e6a86}
-\pagecolor{bg}
-\color{fg}
+% \def\light{1}
+\ifx\light\defined
+	\definecolor{base}{HTML}{1f1d2e}
+	\definecolor{muted}{HTML}{6e6a86}
+	\definecolor{subtle}{HTML}{908caa}
+	\definecolor{text}{HTML}{e0def4}
+	\definecolor{love}{HTML}{eb6f92}
+	\definecolor{gold}{HTML}{f6c177}
+	\definecolor{rose}{HTML}{ea9a97}
+	\definecolor{pine}{HTML}{3e8fb0}
+	\definecolor{foam}{HTML}{9ccfd8}
+	\definecolor{iris}{HTML}{c4a7e7}
+	\pagecolor{base}
+	\color{text}
+\else
+	\definecolor{base}{HTML}{faf4ed}
+	\definecolor{muted}{HTML}{9893a5}
+	\definecolor{subtle}{HTML}{797593}
+	\definecolor{text}{HTML}{575279}
+	\definecolor{love}{HTML}{b4637a}
+	\definecolor{gold}{HTML}{ea9d34}
+	\definecolor{rose}{HTML}{d7827e}
+	\definecolor{pine}{HTML}{286983}
+	\definecolor{foam}{HTML}{56949f}
+	\definecolor{iris}{HTML}{907aa9}
+	\pagecolor{base}
+	\color{text}
+\fi
 
 % Images
 % \usepackage{graphicx}
@@ -44,12 +59,17 @@
 % \usepackage{lipsum}
 
 % Set list numbering
-\renewcommand{\labelenumi}{{\color{c5}\arabic{enumi}}}
-\renewcommand{\labelenumii}{{\color{c5}\arabic{enumi}.\arabic{enumii}}}
-\renewcommand{\labelenumiii}{{\color{c5}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}}
-\renewcommand{\labelenumiv}{{\color{c5}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}}
+\renewcommand{\labelenumi}{{\color{iris}\arabic{enumi}}}
+\renewcommand{\labelenumii}{{\color{iris}\arabic{enumi}.\arabic{enumii}}}
+\renewcommand{\labelenumiii}{{\color{iris}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}}
+\renewcommand{\labelenumiv}{{\color{iris}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}}
 
-\def\code#1{\textcolor{c2}{\texttt{#1}}}
+% Set heading colors
+\usepackage{sectsty}
+\sectionfont{\color{foam}}
+\subsectionfont{\color{rose}}
+
+\def\code#1{\textcolor{iris}{\texttt{#1}}}
 \def\bf#1{\textbf{#1}}
 \def\ul#1{\underline{#1}}
 \def\it#1{\textit{#1}}
@@ -58,14 +78,14 @@
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
-    linkcolor=c4,
+    linkcolor=pine,
     filecolor=magenta,
-    urlcolor=blue,
+    urlcolor=pine,
 }
 
-\title{\huge{\textit{Trickanomicon}}}
-\author{Clemson CCDC Team}
-\date{2024}
+\title{\color{iris}\huge{\bf{\it{Trickanomicon}}}}
+\author{\color{muted}Clemson CCDC Team}
+\date{\color{subtle}2024}
 
 \begin{document}
 
