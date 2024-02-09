@@ -43,6 +43,11 @@
 % \usepackage{multicol}
 % \usepackage{lipsum}
 
+% Set list numbering
+\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}}
+\renewcommand{\labelenumiii}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}
+\renewcommand{\labelenumiv}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}
+
 \def\code#1{\textcolor{c2}{\texttt{#1}}}
 \def\bf#1{\textbf{#1}}
 \def\ul#1{\underline{#1}}
@@ -132,6 +137,34 @@
 		\item View with \code{crontab -e}
 		\item Obliterate user's crontab with \code{crontab -r}
 	\end{enumerate}
+	\item View networking information with \code{ip}
+		\begin{enumerate}
+			\item View network interfaces with \code{ip l}
+				\begin{enumerate}
+					\item Interfaces are prefixed with an \code{en} to signify ethernet, \code{wl} to signify wireless, and \code{v} to signify a virtual link
+					\item Virtual links should be investigated, as they are commonly used for VPNs, docker, and nonsense
+					\item Virtual servers will still show their main link to the host as ethernet
+				\end{enumerate}
+			\item View IP Addresses with \code{ip a} and take note of additional addresses
+		\end{enumerate}
+\end{enumerate}
+
+\subsection{Configurations}
+
+\begin{enumerate}
+	\item SSH Daemon configs are in \code{/etc/ssh/sshd\_config}
+		\begin{enumerate}
+			\item \code{PermitRootLogin} should be set to \code{prohibit-password}
+			\item \code{UsePAM} should be set to \code{no}
+			\item \code{PasswordAuthentication} should be set to \code{yes}
+			\item \code{PermitEmptyPasswords} should be set to \code{no}
+		\end{enumerate}
+	\item File system configs are in \code{/etc/fstab}
+		\begin{enumerate}
+			\item Network File Shares are in the form \\
+				\code{/srv/home    hostname1(rw,sync,no\_subtree\_check)} \\
+				These allow sharing file systems over the network.  They must be reviewed to ensure we are not sharing information with attackers
+		\end{enumerate}
 \end{enumerate}
 
 \subsection{Hunting}
