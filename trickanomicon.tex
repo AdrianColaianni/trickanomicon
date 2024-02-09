@@ -157,7 +157,7 @@ You should remount /tmp and /var/tmp to be non-executable.
 \subsection{30 Minute Plan}
 
 \begin{enumerate}
-	\item (Recommended) Install href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite} .
+	\item Download \href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite}.
 	\item Perform an Nmap scan on machine and note which ports should be accessible.
 	\item Change all user account passwords (including your own) except for \bf{seccdc\_black}. \\
 		\bf{The following one-liner will reset passwords based on the output files:}
@@ -185,6 +185,9 @@ You should remount /tmp and /var/tmp to be non-executable.
 		\end{enumerate}
 	\item Find and remove authorized SSH keys. \\
 		\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
+
+\pagebreak
+	
 	\item Once Nmap scan completes, configure Firewall.
 		\begin{enumerate}
 			\item Export current firewall policy. \\
