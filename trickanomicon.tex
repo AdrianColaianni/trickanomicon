@@ -1,6 +1,6 @@
 \documentclass[12pt,letterpaper]{article}
 \usepackage[margin=1in]{geometry}
-\usepackage[T1]{fontenc}
+
 
 % Font w/ xelatex
 \ifxetex
@@ -20,19 +20,34 @@
 
 % Rose Pine
 \usepackage{xcolor}
-\definecolor{fg}{HTML}{e0def4}
-\definecolor{bg}{HTML}{232136}
-\definecolor{c0}{HTML}{393552}
-\definecolor{c1}{HTML}{eb6f92}
-\definecolor{c2}{HTML}{9ccfd8}
-\definecolor{c3}{HTML}{f6c177}
-\definecolor{c4}{HTML}{3e8fb0}
-\definecolor{c5}{HTML}{c4a7e7}
-\definecolor{c6}{HTML}{ea9a97}
-\definecolor{c7}{HTML}{e0def4}
-\definecolor{c8}{HTML}{6e6a86}
-\pagecolor{bg}
-\color{fg}
+% \def\light{1}
+\ifx\light\defined
+	\definecolor{base}{HTML}{1f1d2e}
+	\definecolor{muted}{HTML}{6e6a86}
+	\definecolor{subtle}{HTML}{908caa}
+	\definecolor{text}{HTML}{e0def4}
+	\definecolor{love}{HTML}{eb6f92}
+	\definecolor{gold}{HTML}{f6c177}
+	\definecolor{rose}{HTML}{ea9a97}
+	\definecolor{pine}{HTML}{3e8fb0}
+	\definecolor{foam}{HTML}{9ccfd8}
+	\definecolor{iris}{HTML}{c4a7e7}
+	\pagecolor{base}
+	\color{text}
+\else
+	\definecolor{base}{HTML}{faf4ed}
+	\definecolor{muted}{HTML}{9893a5}
+	\definecolor{subtle}{HTML}{797593}
+	\definecolor{text}{HTML}{575279}
+	\definecolor{love}{HTML}{b4637a}
+	\definecolor{gold}{HTML}{ea9d34}
+	\definecolor{rose}{HTML}{d7827e}
+	\definecolor{pine}{HTML}{286983}
+	\definecolor{foam}{HTML}{56949f}
+	\definecolor{iris}{HTML}{907aa9}
+	\pagecolor{base}
+	\color{text}
+\fi
 
 % Images
 % \usepackage{graphicx}
@@ -43,7 +58,18 @@
 % \usepackage{multicol}
 % \usepackage{lipsum}
 
-\def\code#1{\textcolor{c2}{\texttt{#1}}}
+% Set list numbering
+\renewcommand{\labelenumi}{{\color{iris}\arabic{enumi}}}
+\renewcommand{\labelenumii}{{\color{iris}\arabic{enumi}.\arabic{enumii}}}
+\renewcommand{\labelenumiii}{{\color{iris}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}}}
+\renewcommand{\labelenumiv}{{\color{iris}\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}}
+
+% Set heading colors
+\usepackage{sectsty}
+\sectionfont{\color{foam}}
+\subsectionfont{\color{rose}}
+
+\def\code#1{\textcolor{iris}{\texttt{#1}}}
 \def\bf#1{\textbf{#1}}
 \def\ul#1{\underline{#1}}
 \def\it#1{\textit{#1}}
@@ -52,14 +78,14 @@
 \usepackage{hyperref}
 \hypersetup{
     colorlinks=true,
-    linkcolor=c4,
+    linkcolor=pine,
     filecolor=magenta,
-    urlcolor=blue,
+    urlcolor=pine,
 }
 
-\title{\huge{\textit{Trickanomicon}}}
-\author{Clemson CCDC Team}
-\date{2024}
+\title{\color{iris}\huge{\bf{\it{Trickanomicon}}}}
+\author{\color{muted}Clemson CCDC Team}
+\date{\color{subtle}2024}
 
 \begin{document}
 
@@ -71,6 +97,39 @@
 
 \pagebreak
 
+\section{Competition Information}
+
+\subsection{Pre-Competition Checklist/General Knowledge Requirements}
+
+\begin{enumerate}
+	\item NMAP installed on your local machine
+	\item Minimal understanding of bash
+\end{enumerate}
+
+\subsection{High-Level First 30 Minutes Plan}
+
+\begin{enumerate}
+	\item Lead captain will do a ping sweep scan to see what's on the network + an rdp port scan to figure out which machines are windows
+
+	\item Machines get assigned to people (and this will be written down on a whiteboard that we can all see)
+
+	\item Each person will nmap scan the machine they are assigned and give results in the appropriate channel
+		\begin{enumerate} \label{nmap}
+		\item Do a quick scan to find all open ports \\
+			\code{\bf{nmap -p- -T5} \ul{<target ip>}}
+		\item After getting all open ports, get service and OS information with specific ports \\
+			\code{\bf{nmap -A -p port1,port2,port3,...} \ul{<target ip>}}
+	\end{enumerate}
+
+	\item Each person will log into their machine and do user management stuff
+
+	\item Each person will do system hardening + firewalls (or let firewall guru do their thing) for their machine
+
+	\item Each person will monitor their machine for activity from there on out unless they're helping with an inject
+\end{enumerate}
+
+\pagebreak
+
 \section{Linux}
 
 \bf{Do not touch the} \code{seccdc\_black} \bf{account}
@@ -78,22 +137,16 @@
 \subsection{30 Minute Plan}
 
 \begin{enumerate}
-	\item Start NMAP scan from your local computer to your assigned machine in the background
-		\begin{enumerate}
-			\item Do a quick scan to find all open ports \\
-				\code{\bf{nmap -p- -T5} \ul{<target ip>}}
-			\item After getting all open ports, get service and OS information with specific ports \\
-				\code{\bf{nmap -sV -O -p port1,port2,port3,...} \ul{<target ip>}}
-		\end{enumerate}
+	\item \hyperref[nmap]{NMAP Scan Machine} in background
 	\item Rotate all ssh keys
 		\begin{enumerate}
-			\item Populate the machines with the ssh key from Adrian/Duncan
+			\item Populate the machines with the ssh key from lead linux captain
 			\item Deploy with \code{\bf{ssh-copy-id -i} \ul{identity\_file} [\ul{user}@\ul{hostname}]}
 			\item Ensure there is only one entry (one line) in \code{/home/<user>/.ssh/authorized\_keys}. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
 			\item Remove all other authorized keys files with \code{find / -name authorized\_keys}
 		\end{enumerate}
-	\item Check accounts and reset password \bf{ASAP} using appropriate one liners from \bf{Duncan's Magic}
-	\item Lock unnecessary accounts with \code{\bf{usermod -L} \ul{LOGIN}} and if nothing goes red, delete account with \code{\bf{userdel -r} \ul{LOGIN}}. Or use appropriate one liners from \bf{Duncan's Magic} to lock accounts
+	\item Check accounts and reset password \bf{ASAP} using appropriate one liners from \hyperref[subsec:dmagic]{Duncan's Magic}
+	\item Lock unnecessary accounts with \code{\bf{usermod -L} \ul{LOGIN}} and if nothing goes red, delete account with \code{\bf{userdel -r} \ul{LOGIN}}. Or use appropriate one liners from \hyperref[subsec:dmagic]{Duncan's Magic} to lock accounts
 	\item Find listening services with \code{ss -lp} and investigate strange ones
 \end{enumerate}
 
@@ -139,32 +192,366 @@
 	\begin{enumerate}
 		\item View with \code{crontab -e}
 		\item Obliterate user's crontab with \code{crontab -r}
+		\item See \hyperref[subsec:dmagic]{Duncan's Magic} for a one liner to remove crontabs from a list of users. Don't forget to remove \code{sudo}'s crontab(s) too!
 	\end{enumerate}
 \end{enumerate}
 
 \subsection{Hunting}
 
 \begin{enumerate}
-	\item List all files with creation date, most recent first: \code{find /usr /bin /etc \textbackslash{} \\
+	\item List all files with creation date, most recent first: \code{find /usr /bin /etc \textbackslash \\
 		/var -type f -exec stat -c "\%W \%n" \{\} + | sort -r > files}
-	\item List all files created after set date, most recent first: \code{find /usr /bin /etc \textbackslash{} \\
+	\item List all files created after set date, most recent first: \code{find /usr /bin /etc \textbackslash \\
 		/var -type f -newermt \ul{YYYY-MM-DD} -exec stat -c "\%W \%n" \{\} + | sort -r > files}
 \end{enumerate}
 
 \subsection{Duncan's Magic}
+\label{subsec:dmagic}
 
 \begin{enumerate}
-	\item Remove users listed in disable.txt \\
+	\item Remove users listed in \bf{./disable.txt} \\
 		\code{while read user;do sudo usermod -L \$user;done<disable.txt}
-	\item Generate new passwords for every user in ./users.txt. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure SERVICE is changed to match the corresponding service the passwords are being reset for. \\
-		\code{t='25'; s='SERVICE'; while read u; do u=`echo \$u | tr -d '[:space:]'`; \textbackslash{}\\
-		p=`tr -dc 'A-Za-z0-9!@\#\$\%' </dev/urandom | head -c 24; echo`; \textbackslash{}\\
+	\item Generate new passwords for every user in \bf{./users.txt}. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure SERVICE is changed to match the corresponding service the passwords are being reset for. \\
+		\code{t='25'; s='SERVICE'; while read u; do u=`echo \$u | tr -d '[:space:]'`; \textbackslash\\
+		p=`tr -dc 'A-Za-z0-9!@\#\$\%' </dev/urandom | head -c 24; echo`; \textbackslash\\
 		echo "\$s,\$u,\$p" >{}> "Team"\$t"\_"\$s"\_PWD.csv"; done < users.txt}
 	\item Actually reset passwords using the generated list from the command immediately preceeding this \\
 		\code{awk -F, '\{ print \$2":"\$3 \}' ./<generated\_file.csv> | sudo chpasswd}
-	\item Find users not in ./known\_users.txt \\
-		\code{awk -F: '\{if(\$3>=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd|sort|comm -13 \textbackslash{} \\
-		known\_users.txt ->extra\_users.txt}
+	\item Find users not in \bf{./known\_users.txt} \\
+		\code{awk -F: '\{if(\$3>{}=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd|sort|comm -13 \textbackslash \\
+		known\_users.txt -> extra\_users.txt}
+	\item Remove crontabs from list of users in \bf{./users.txt} \\
+		\code{while read u; do sudo crontab -u \$u -r; done < users.txt}
 \end{enumerate}
+
+\subsection{Hardening}
+
+You should remount /tmp and /var/tmp to be non-executable.
+\begin{enumerate}
+	\item If /tmp and /var/tmp are already mounted, you can simply do: \code{ \\
+		mount -o remount,nodev,nosuid,noexec /tmp \\
+		mount -o remount,nodev,nosuid,noexec /var/tmp }
+	\item If they haven't already been mounted, edit /etc/fstab to include: \code{ \\
+		tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 \\
+		tmpfs /var/tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 }
+	\item Once /etc/fstab has been updated, you can run: \code{ \\
+		mount -o nodev,nosuid,noexec /tmp \\
+		mount -o nodev,nosuid,noexec /var/tmp }
+\end{enumerate}
+
+\subsection{Logging with auditd}
+
+Setup auditd for logging purposes
+\begin{enumerate}
+	\item Make sure auditd daemon is enabled and running
+		\begin{enumerate}
+			\item \code{sudo systemctl enable --now auditd}
+		\end{enumerate}
+	\item After auditd has been started, add rules to \code{/etc/audit/rules.d/audit.rules}. You will need \code{sudo} permissions to edit this file.
+		\begin{enumerate}
+			\item Visit \href{https://github.com/Neo23x0/auditd/blob/master/audit.rules}{this masterful auditd github repo} for a wide variety of auditd rules to copy / imitate.
+		\end{enumerate}
+	\item Restart auditd to apply these new rules
+		\begin{enumerate}
+			\item \code{sudo systemctl restart auditd}
+		\end{enumerate}
+\end{enumerate}
+
+Looking at auditd alerts
+\begin{enumerate}
+	\item Logs are stored in \code{/var/log/audit/audit.log}
+		\begin{enumerate}
+			\item You can use \code{ausearch} to query this log
+			\item \code{aureport} can also be used to generate a list of events
+		\end{enumerate}
+	\item Important takeaways when analyzing auditd logs
+		\begin{enumerate}
+			\item euid = effective user id. Pay attention if EUID field is 0 as this means a file or program was run as root
+			\item exe field indicates which command was run (if one was run at all)
+			\item key field stores the name of the alert that was triggered
+			\item pid field stores the process id
+		\end{enumerate}
+	\item Utilize the various fields, timestamps, and \code{ausearch} and \code{aureport} tools to observe, report, and take action on suspicious activity
+\end{enumerate}
+
+\subsection{Service Management}
+
+Unfortunately, this section is empty as I (Duncan) am tired and want to go to sleep before the competition. \\
+Use your best judgement and Google the absolute life out of your fingers. \\
+As always, if you get stuck, please ask for help
+
+\pagebreak
+
+\section{Windows}
+
+\subsection{30 Minute Plan}
+
+\begin{enumerate}
+	\item Download \href{https://download.sysinternals.com/files/SysinternalsSuite.zip}{Sysinternals Suite}.
+	\item Perform an Nmap scan on machine and note which ports should be accessible.
+	\item Change all user account passwords (including your own) except for \bf{seccdc\_black}. \\
+		\bf{The following one-liner will reset passwords based on the output files:}
+		{ \color{iris} \begin{verbatim}
+		import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
+		foreach {net user $\_.user $\_.pass};
+		del "Team25\_$(hostname)-SSH\_PWD.csv"
+		\end{verbatim} }
+	\item Disable (or delete) unauthorized user accounts on the system. \\
+	\bf{DO NOT DISABLE seccdc\_black AND YOUR USER ACCOUNT}
+		\begin{enumerate}
+			\item Audit accounts on system:
+				{ \color{iris} \begin{verbatim}
+				get-localuser | foreach {
+					$expected = get-content "users.txt";
+					if ($\_.Name -notin $expected) {
+						echo $\_.Name; add-content "unexpected.txt" $\_.Name
+					}
+				}
+				\end{verbatim} }
+			\item Disable unauthorized accounts:
+				{ \color{iris} \begin{verbatim}
+				get-content "unexpected.txt" | foreach {net user $\_ /active:no}
+				\end{verbatim} }
+		\end{enumerate}
+	\item Find and remove authorized SSH keys. \\
+		\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
+
+	\item Once Nmap scan completes, configure Firewall.
+		\begin{enumerate}
+			\item Export current firewall policy. \\
+				\code{netsh advfirewall export "C:\textbackslash{}rules.wfw"}
+			\item Disable firewall. \\
+				\code{netsh advfirewall set allprofiles state off}
+			\item Flush inbound/outbound rules. \\
+				\code{Remove-NetFirewallRule}
+			\item Add rules for RDP (svchost.exe 3389) and SSH (sshd.exe 22). \\
+			\code{\$port = <PORT>; New-NetFirewallRule -DisplayName "Inbound \$port" ` \\
+			-Direction Inbound -LocalPort \$port -Protocol TCP ` \\
+			-Action Allow -Program "Path\textbackslash{}To\textbackslash{}Executable"}
+			\item Configure additional rules as needed for scoring/internet (DNS: 53, HTTP: 80/443).
+			\item Re-enable firewall to block inbound and outbound (allow outbound on AD). \\
+				\code{netsh advfirewall set allprofiles firewallpolicy blockinbound blockoutbound}
+				\code{netsh advfirewall set allprofiles state on}
+		\end{enumerate}
+	\bf{NOTE: Rules should ideally specify applications and source IPs.}
+\end{enumerate}
+
+\subsection{Hardening}
+
+\begin{enumerate}
+	\item Configure NLA for RDP.
+	\item Service Management:
+	\begin{enumerate}
+		\item Disable Print Spooler. \\
+			\code{Set-Service -Name "Spooler" -Status stopped -StartupType disabled}
+		\item Disable WinRM. \\
+			\code{Disable-PSRemoting -Force}; \\
+			\code{Set-Service -Name "WinRM" -Status stopped -StartupType disabled}
+		\item Configure SMB:
+		\begin{enumerate}
+			\item If SMB is unneeded (i.e. not in an AD setting), disable it entirely. \\
+				\code{Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled}
+			\item If SMB is needed, disable SMBv1. \\
+				\code{Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol}
+		\end{enumerate}
+	\end{enumerate}
+	\item Group Policy:
+	\begin{enumerate}
+		\item Check User Rights Assignment
+	\end{enumerate}
+
+\end{enumerate}
+
+\subsection{Monitoring}
+
+\begin{enumerate}
+	\item View all network connections with \code{netstat -aonb}. For a live view, use TCPView.
+	\item View running processes in the details pane of Task Manager or via Process Explorer.
+	\item View all connected Named Pipes / SMB Shares with \code{net use}.
+	\item View all connected sessions with \code{qwinsta}.
+	\item To get an insight into Powershell activity, enable Powershell Block Logging/Transcription. \\
+		\code{Administrative Templates > Windows Components > Windows Powershell}
+	\item For an overview of system activity, configure Sysmon with \href{https://github.com/D42H5/cyber\_comp\_resources/blob/main/sysmonconfig-export-modified-2-2-24.xml}{this config}.
+	\begin{enumerate}
+		\item To install Sysmon, run \code{sysmon -i <PATH TO CONFIG FILE>}.
+		\item Logs are sent to Applications and Services Logs > Microsoft > Windows > Sysmon.
+		\item If you want to update your config file, run \code{sysmon -c <PATH TO NEW CONFIG>}.
+	\end{enumerate}
+	\item You can view system events with the Event Viewer or Nirsoft's \href{https://www.nirsoft.net/utils/fulleventlogview-x64.zip}{EventLogViewer}.
+\end{enumerate}
+
+\subsection{Response}
+
+\begin{enumerate}
+	\item Kill a connected session with \code{rwinsta <SESSION ID>}.
+	\item Kill a process in Task Manager/Process Explorer or with \code{taskkill /f /pid <PID>}.
+\end{enumerate}
+
+\subsection{Hunting}
+
+\begin{enumerate}
+	\item Install \href{https://downloads.malwarebytes.com/file/mb-windows}{Malwarebytes} and run a system scan. It can be installed silently with: \\
+		\code{.\textbackslash{}MBSetup.exe /VERYSILENT /NORESTART}
+	\item You can scan the system for unsigned dlls with \code{listdlls -u}.
+	\item AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
+	\item The Autoruns utility can be used to find potential persistence mechanisms. The Task Scheduler should also be checked.
+	\item You can use BLUESPAWN to aid in hunting. It is a complete EDR solution built for CCDC.
+	\begin{enumerate}
+		\item It can be obtained from \href{https://github.com/ION28/BLUESPAWN/releases/download/v0.5.1-alpha/BLUESPAWN-client-x64.exe}{here}.
+		\item Basic usage is as follows:
+		\begin{enumerate}
+			\item BLUESPAWN-client-x64.exe --mitigate compares the system to a secure baseline.
+			\item BLUESPAWN-client-x64.exe --hunt does a single-pass scan for malicious activity.
+			\item BLUESPAWN-client-x64.exe --monitor is like hunt but alerts on new activity.
+		\end{enumerate}
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{Considerations for Active Directory}
+
+The below ports are needed for Active Directory to operate:
+{ \color{iris} \begin{verbatim}
+	53 TCP/UDP: DNS
+	88 TCP/UDP: Kerberos
+	123 TCP: NTP
+	135 TCP: NetBIOS
+	138,139 TCP/UDP: File Replication
+	389,636 TCP: LDAP & LDAPS
+	445 TCP: SMB
+	464 TCP: Kerberos password change
+	3268,3269 TCP: Global Catalog LDAP & LDAPS
+\end{verbatim} }
+\bf{These should be allowed inbound and outbound on a DC and outbound on a DM.}
+
+\begin{enumerate}
+	\item Many of the above steps can be done across multiple machines via Group Policy.
+	\item The krbtgt password should be reset.
+	\item The Domain Administrators group should have minimum membership.
+	\item Kerberos authentication attempts should be monitored.
+	\item You can force a reset of domain group policy with the below commands:
+		{ \color{iris} \begin{verbatim}
+	dcgpofix /target:both
+	gpupdate /force
+		\end{verbatim} }
+\end{enumerate}
+
+\subsection{Installing the ELK Stack}
+
+\begin{enumerate}
+	\item Install the prerequisites	using manually or using scoop (see below). \\
+	\ul{If using scoop, apps are installed in \$HOME/scoop/apps/<APPNAME>/current.}
+		\begin{enumerate}
+			\item Add the `extras` repository with \code{scoop bucket add extras}.
+			\item Add the `java' repository with \code{scoop bucket add java}.
+			\item Install elasticsearch and kibana with \code{scoop install elasticsearch kibana openjdk}.
+			\item Notepad++ (notepadplusplus) is recommended for editing the yml files.
+		\end{enumerate}
+	\item Add the following lines to \code{<ELASTICSEARCH DIR>/config/elasticsearch.yml}:
+		{ \color{iris} \begin{verbatim}
+			xpack.security.enabled: true
+			xpack.security.enrollment.enabled: true
+			cluster.initial\_master\_nodes: ["elk"]
+			http.host: [\_local\_, \_site\_]
+		\end{verbatim} }
+	\item Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
+	\item Reset passwords for the kibana\_system and elastic accounts.
+		\begin{enumerate}
+			\item \code{<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u kibana-system}
+			\item \code{<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u elastic}
+		\end{enumerate}
+	\bf{SAVE THESE PASSWORDS SOMEWHERE.}
+	\item Add the following lines to \code{<KIBANA DIR>/config/kibana.yml}:
+		{ \color{iris} \begin{verbatim}
+			server.host: "0.0.0.0"
+			server.publicBaseUrl: "http://localhost"
+			elasticsearch.hosts: ["http://localhost:9200"]
+			elasticsearch.username: "kibana\_system"
+			elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
+			elasticsearch.ssl.verificationMode: none
+		\end{verbatim} }
+	\item Stop the elasticsearch executable and install it as a service with: \\
+		\code{<ELASTICSEARCH DIR>/bin/elasticsearch-service.bat install}
+	\item Start the elasticsearch service with \code{start-service elasticsearch-service-x64}
+	\item Start kibana in a Powershell prompt. It will take a moment to initialize.
+	\item You may now log into kibana at localhost:5601 with the elastic account.
+\end{enumerate}
+
+\subsection{Configuring Winlogbeat}
+
+\begin{enumerate}
+	\item You can obtain Winlogbeat from \href{https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-8.12.0-windows-x86\_64.zip}{here}.
+	\item Extract the Winlogbeat directory to C:\textbackslash{}Program Files.
+	\item Edit the winlogbeat.yml file as needed for environment and log forwarding.
+	\item Install Winlogbeat as a service with \code{.\textbackslash{}install-service-winlogbeat.ps1}
+	\item Load the prebuilt Winlogbeat assets with \code{.\textbackslash{}winlogbeat.exe setup -e}.
+	\item Start the Winlogbeat service with \code{start-service winlogbeat}
+\end{enumerate}
+
+\section{Service Configuration}
+
+\subsection{MySQL}
+
+\begin{enumerate}
+	\item Change passwords for any non-scored users. \\
+		\code{SELECT User, Host FROM mysql.user;} \\
+		\code{ALTER USER '<USERNAME>'@<HOST> IDENTIFIED BY '<NEW PASSWORD>';}
+	\item Drop unauthorized users. \\
+		\code{SELECT User, Host FROM mysql.user;} \\
+		\code{DROP USER '<USERNAME>'@<HOST>; }
+	\item Prepare a database backup and store somewhere safe \bf{off the system}.
+	\begin{enumerate}
+		\item Backup: \code{mysqldump -u <USERNAME> -p --all-databses > <BACKUP PATH>}
+		\item Restore: \code{mysql -u <USERNAME> -p < <BACKUP PATH>} \\
+	\end{enumerate}
+\end{enumerate}
+
+\subsection{FTP}
+
+\bf{ANONYMOUS ACCESS CANNOT BE DISABLED.}
+
+\begin{enumerate}
+	\item On Windows, you will interact with the IIS console to manage FTP.
+	\item On Linux, you will interact with /etc/vsftpd.conf (probably).
+	\item Manage anonymous permissions to only allow reads (and writes if needed).
+	\item Restrict access to non-shared directories from anonymous users.
+	\item Prevent executables from running in the shared directory.
+\end{enumerate}
+
+\subsection{SSH}
+
+\begin{enumerate}
+	\item Check the SSH config file for potential misconfigurations.
+	\begin{enumerate}
+		\item `PermitRootLogin` should be set to `no`
+		\item `PermitEmptyPasswords` should be set to `no`
+	\end{enumerate}
+	\item You can tunnel a port over ssh with the following syntax: \\
+		\code{ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>}
+\end{enumerate}
+
+\subsection{Web Servers}
+
+\begin{enumerate}
+	\item With IIS, some hardening can be automated with \href{https://github.com/ufsitblue/blue/blob/main/dsu\_blue/windows/IIS.ps1}{this script}.
+	\item (If applicable) Change passwords for user accounts on website.
+	\item Ensure that directory listing is disabled.
+	\item Check web server directory for php webshells.
+	\begin{enumerate}
+		\item Webshells are likely to have malicious phrases like exec in the php file.
+		\item You can minimize the possibility of this attack by disabling the phrases outright.
+		\item Run php --ini to list all of the config files currently loaded into php.
+		\item Add the following lines to the end of each config file:
+	\end{enumerate}
+\end{enumerate}
+
+{ \color{iris} \begin{verbatim}
+# the below needs to be on one line
+disable\_functions=exec,passthru,shell\_exec,system,proc\_open,
+popen,curl\_exec,curl\_multi\_exec,parse\_ini\_file,show\_source
+# disable file uploads if they aren't needed
+file\_uploads=off
+allow\_url\_fopen=off
+allow\_url\_include=off
+\end{verbatim} }
 
 \end{document}
