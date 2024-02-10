@@ -272,8 +272,6 @@ You should remount /tmp and /var/tmp to be non-executable.
 		mount -o nodev,nosuid,noexec /var/tmp }
 \end{enumerate}
 
-<<<<<<< HEAD
-=======
 \subsection{Logging with auditd}
 
 Setup auditd for logging purposes
@@ -354,8 +352,6 @@ Looking at auditd alerts
 	\bf{NOTE: If you are in an AD environment, see \hyperref[subsec:adcon]{Active Directory Considerations}.}
 \end{enumerate}
 
-\pagebreak
-
 \subsection{One-Liners}
 \label{subsec:woliner}
 
@@ -394,172 +390,6 @@ Looking at auditd alerts
 		get-content "unexpected.txt" | foreach {net user $\_ /active:no}
 		\end{verbatim} }
 \end{enumerate}
-
-\pagebreak
-
-\subsection{One-Liners}
-\label{subsec:woliner}
-
-\begin{enumerate}
-	\item Install Scoop Package Manager (Recommended): \\
-		{ \color{iris} \begin{verbatim}
-		Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-		Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-		\end{verbatim} }
-	\item Generate CSV file with Passwords \bf{(NOT NECESSARY FOR QUALIFIERS)}:
-		{ \color{iris} \begin{verbatim}
-		get-content "users.txt" | foreach {
-			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-			get-random -Count 24 | % {[char]$\_});
-			add-content "Team25\_$(hostname)-SSH\_PWD.csv" "hostname,$\_,$secret"
-		}
-		\end{verbatim} }
-	\item Reset Passwords based on generated password CSV file:
-		{ \color{iris} \begin{verbatim}
-		import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
-		foreach {net user $\_.user $\_.pass};
-		del "Team25\_$(hostname)-SSH\_PWD.csv"
-		\end{verbatim} }
-	\item Audit accounts on system based on list of expected users:
-		{ \color{iris} \begin{verbatim}
-			$expected = get-content "users.txt";
-			$expected += $env:Username, "seccdc\_black"
-			get-localuser | foreach {
-				if ($\_.Name -notin $expected) {
-					echo $\_.Name; add-content "unexpected.txt" $\_.Name
-				}
-			}
-		\end{verbatim} }
-	\item Disable unauthorized accounts:
-		{ \color{iris} \begin{verbatim}
-		get-content "unexpected.txt" | foreach {net user $\_ /active:no}
-		\end{verbatim} }
-\end{enumerate}
-
-\pagebreak
-
-\subsection{One-Liners}
-\label{subsec:woliner}
-
-\begin{enumerate}
-	\item Install Scoop Package Manager (Recommended): \\
-		{ \color{iris} \begin{verbatim}
-		Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-		Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-		\end{verbatim} }
-	\item Generate CSV file with Passwords \bf{(NOT NECESSARY FOR QUALIFIERS)}:
-		{ \color{iris} \begin{verbatim}
-		get-content "users.txt" | foreach {
-			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-			get-random -Count 24 | % {[char]$\_});
-			add-content "Team25\_$(hostname)-SSH\_PWD.csv" "hostname,$\_,$secret"
-		}
-		\end{verbatim} }
-	\item Reset Passwords based on generated password CSV file:
-		{ \color{iris} \begin{verbatim}
-		import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
-		foreach {net user $\_.user $\_.pass};
-		del "Team25\_$(hostname)-SSH\_PWD.csv"
-		\end{verbatim} }
-	\item Audit accounts on system based on list of expected users:
-		{ \color{iris} \begin{verbatim}
-			$expected = get-content "users.txt";
-			$expected += $env:Username, "seccdc\_black"
-			get-localuser | foreach {
-				if ($\_.Name -notin $expected) {
-					echo $\_.Name; add-content "unexpected.txt" $\_.Name
-				}
-			}
-		\end{verbatim} }
-	\item Disable unauthorized accounts:
-		{ \color{iris} \begin{verbatim}
-		get-content "unexpected.txt" | foreach {net user $\_ /active:no}
-		\end{verbatim} }
-\end{enumerate}
-
-\pagebreak
-
-\subsection{One-Liners}
-\label{subsec:woliner}
-
-\begin{enumerate}
-	\item Install Scoop Package Manager (Recommended): \\
-		{ \color{iris} \begin{verbatim}
-		Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-		Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-		\end{verbatim} }
-	\item Generate CSV file with Passwords \bf{(NOT NECESSARY FOR QUALIFIERS)}:
-		{ \color{iris} \begin{verbatim}
-		get-content "users.txt" | foreach {
-			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-			get-random -Count 24 | % {[char]$\_});
-			add-content "Team25\_$(hostname)-SSH\_PWD.csv" "hostname,$\_,$secret"
-		}
-		\end{verbatim} }
-	\item Reset Passwords based on generated password CSV file:
-		{ \color{iris} \begin{verbatim}
-		import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
-		foreach {net user $\_.user $\_.pass};
-		del "Team25\_$(hostname)-SSH\_PWD.csv"
-		\end{verbatim} }
-	\item Audit accounts on system based on list of expected users:
-		{ \color{iris} \begin{verbatim}
-			$expected = get-content "users.txt";
-			$expected += $env:Username, "seccdc\_black"
-			get-localuser | foreach {
-				if ($\_.Name -notin $expected) {
-					echo $\_.Name; add-content "unexpected.txt" $\_.Name
-				}
-			}
-		\end{verbatim} }
-	\item Disable unauthorized accounts:
-		{ \color{iris} \begin{verbatim}
-		get-content "unexpected.txt" | foreach {net user $\_ /active:no}
-		\end{verbatim} }
-\end{enumerate}
-
-\pagebreak
-
-\subsection{One-Liners}
-\label{subsec:woliner}
-
-\begin{enumerate}
-	\item Install Scoop Package Manager (Recommended): \\
-		{ \color{iris} \begin{verbatim}
-		Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-		Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-		\end{verbatim} }
-	\item Generate CSV file with Passwords \bf{(NOT NECESSARY FOR QUALIFIERS)}:
-		{ \color{iris} \begin{verbatim}
-		get-content "users.txt" | foreach {
-			$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-			get-random -Count 24 | % {[char]$\_});
-			add-content "Team25\_$(hostname)-SSH\_PWD.csv" "hostname,$\_,$secret"
-		}
-		\end{verbatim} }
-	\item Reset Passwords based on generated password CSV file:
-		{ \color{iris} \begin{verbatim}
-		import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
-		foreach {net user $\_.user $\_.pass};
-		del "Team25\_$(hostname)-SSH\_PWD.csv"
-		\end{verbatim} }
-	\item Audit accounts on system based on list of expected users:
-		{ \color{iris} \begin{verbatim}
-			$expected = get-content "users.txt";
-			$expected += $env:Username, "seccdc\_black"
-			get-localuser | foreach {
-				if ($\_.Name -notin $expected) {
-					echo $\_.Name; add-content "unexpected.txt" $\_.Name
-				}
-			}
-		\end{verbatim} }
-	\item Disable unauthorized accounts:
-		{ \color{iris} \begin{verbatim}
-		get-content "unexpected.txt" | foreach {net user $\_ /active:no}
-		\end{verbatim} }
-\end{enumerate}
-
-\pagebreak
 
 \subsection{Hardening}
 
