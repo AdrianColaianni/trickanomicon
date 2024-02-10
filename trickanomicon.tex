@@ -210,21 +210,15 @@
 
 You should remount /tmp and /var/tmp to be non-executable.
 \begin{enumerate}
-	\item If /tmp and /var/tmp are already mounted, you can simply do:
-	\begin{verbatim}
-	mount -o remount,nodev,nosuid,noexec /tmp
-	mount -o remount,nodev,nosuid,noexec /var/tmp
-	\end{verbatim}
-	\item If they haven't already been mounted, edit /etc/fstab to include:
-	\begin{verbatim}
-	tmpfs    /tmp    tmpfs    defaults,noatime,nosuid,nodev,noexec,mode=1777   0  0
-	tmpfs    /var/tmp    tmpfs    defaults,noatime,nosuid,nodev,noexec,mode=1777   0  0
-	\end{verbatim}
-	\item Once /etc/fstab has been updated, you can run:
-	\begin{verbatim}
-	mount -o nodev,nosuid,noexec /tmp
-	mount -o nodev,nosuid,noexec /var/tmp
-	\end{verbatim}
+	\item If /tmp and /var/tmp are already mounted, you can simply do: \code{ \\
+		mount -o remount,nodev,nosuid,noexec /tmp \\
+		mount -o remount,nodev,nosuid,noexec /var/tmp }
+	\item If they haven't already been mounted, edit /etc/fstab to include: \code{ \\
+		tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 \\
+		tmpfs /var/tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 }
+	\item Once /etc/fstab has been updated, you can run: \code{ \\
+		mount -o nodev,nosuid,noexec /tmp \\
+		mount -o nodev,nosuid,noexec /var/tmp }
 \end{enumerate}
 
 \pagebreak
@@ -238,27 +232,27 @@ You should remount /tmp and /var/tmp to be non-executable.
 	\item Perform an Nmap scan on machine and note which ports should be accessible.
 	\item Change all user account passwords (including your own) except for \bf{seccdc\_black}. \\
 		\bf{The following one-liner will reset passwords based on the output files:}
-		\begin{verbatim}
+		{ \color{iris} \begin{verbatim}
 		import-csv "Team25_$(hostname)-SSH_PWD.csv" -Header "host","user","pass" |
 		foreach {net user $_.user $_.pass};
 		del "Team25_$(hostname)-SSH_PWD.csv"
-		\end{verbatim}
+		\end{verbatim} }
 	\item Disable (or delete) unauthorized user accounts on the system. \\
 	\bf{DO NOT DISABLE seccdc\_black AND YOUR USER ACCOUNT}
 		\begin{enumerate}
 			\item Audit accounts on system:
-				\begin{verbatim}
+				{ \color{iris} \begin{verbatim}
 				get-localuser | foreach {
 					$expected = get-content "users.txt";
 					if ($_.Name -notin $expected) {
 						echo $_.Name; add-content "unexpected.txt" $_.Name
 					}
 				}
-				\end{verbatim}
+				\end{verbatim} }
 			\item Disable unauthorized accounts:
-				\begin{verbatim}
+				{ \color{iris} \begin{verbatim}
 				get-content "unexpected.txt" | foreach {net user $_ /active:no}
-				\end{verbatim}
+				\end{verbatim} }
 		\end{enumerate}
 	\item Find and remove authorized SSH keys. \\
 		\code{dir C:\textbackslash{} -Recurse | findstr "authorized\_keys"}
@@ -357,7 +351,7 @@ You should remount /tmp and /var/tmp to be non-executable.
 \subsection{Considerations for Active Directory}
 
 The below ports are needed for Active Directory to operate:
-\begin{verbatim}
+{ \color{iris} \begin{verbatim}
 	53 TCP/UDP: DNS
 	88 TCP/UDP: Kerberos
 	123 TCP: NTP
@@ -367,7 +361,7 @@ The below ports are needed for Active Directory to operate:
 	445 TCP: SMB
 	464 TCP: Kerberos password change
 	3268,3269 TCP: Global Catalog LDAP & LDAPS
-\end{verbatim}
+\end{verbatim} }
 \bf{These should be allowed inbound and outbound on a DC and outbound on a DM.}
 
 \begin{enumerate}
@@ -376,10 +370,10 @@ The below ports are needed for Active Directory to operate:
 	\item The Domain Administrators group should have minimum membership.
 	\item Kerberos authentication attempts should be monitored.
 	\item You can force a reset of domain group policy with the below commands:
-	\begin{verbatim}
+		{ \color{iris} \begin{verbatim}
 	dcgpofix /target:both
 	gpupdate /force
-	\end{verbatim}
+		\end{verbatim} }
 \end{enumerate}
 
 \subsection{Installing the ELK Stack}
@@ -394,12 +388,12 @@ The below ports are needed for Active Directory to operate:
 			\item Notepad++ (notepadplusplus) is recommended for editing the yml files.
 		\end{enumerate}
 	\item Add the following lines to \code{<ELASTICSEARCH DIR>/config/elasticsearch.yml}:
-		\begin{verbatim}
+		{ \color{iris} \begin{verbatim}
 			xpack.security.enabled: true
 			xpack.security.enrollment.enabled: true
 			cluster.initial_master_nodes: ["elk"]
 			http.host: [_local_, _site_]
-		\end{verbatim}
+		\end{verbatim} }
 	\item Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
 	\item Reset passwords for the kibana\_system and elastic accounts.
 		\begin{enumerate}
@@ -408,14 +402,14 @@ The below ports are needed for Active Directory to operate:
 		\end{enumerate}
 	\bf{SAVE THESE PASSWORDS SOMEWHERE.}
 	\item Add the following lines to \code{<KIBANA DIR>/config/kibana.yml}:
-		\begin{verbatim}
+		{ \color{iris} \begin{verbatim}
 			server.host: "0.0.0.0"
 			server.publicBaseUrl: "http://localhost"
 			elasticsearch.hosts: ["http://localhost:9200"]
 			elasticsearch.username: "kibana_system"
 			elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
 			elasticsearch.ssl.verificationMode: none
-		\end{verbatim}
+		\end{verbatim} }
 	\item Stop the elasticsearch executable and install it as a service with: \\
 		\code{<ELASTICSEARCH DIR>/bin/elasticsearch-service.bat install}
 	\item Start the elasticsearch service with \code{start-service elasticsearch-service-x64}
@@ -491,7 +485,7 @@ The below ports are needed for Active Directory to operate:
 	\end{enumerate}
 \end{enumerate}
 
-\begin{verbatim}
+{ \color{iris} \begin{verbatim}
 # the below needs to be on one line
 disable_functions=exec,passthru,shell_exec,system,proc_open,
 popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
@@ -499,6 +493,6 @@ popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
 file_uploads=off
 allow_url_fopen=off
 allow_url_include=off
-\end{verbatim}
+\end{verbatim} }
 
 \end{document}
