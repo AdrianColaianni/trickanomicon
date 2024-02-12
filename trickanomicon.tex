@@ -244,14 +244,16 @@
 \begin{enumerate}
 	\item Remove users listed in \bf{./disable.txt} \\
 		\code{while read user;do sudo usermod -L \$user;done<disable.txt}
-	\item Generate new passwords for every user in \bf{./users.txt}. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure SERVICE is changed to match the corresponding service the passwords are being reset for. \\
-		\code{t='25'; s='SERVICE'; while read u; do u=`echo \$u | tr -d '[:space:]'`; \textbackslash\\
-		p=`tr -dc 'A-Za-z0-9!@\#\$\%' </dev/urandom | head -c 24; echo`; \textbackslash\\
-		echo "\$s,\$u,\$p" >{}> "Team"\$t"\_"\$s"\_PWD.csv"; done < users.txt}
+	\item Generate new passwords for every user in \bf{./users.txt}. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for. \\
+		\code{s='SERVICE'; while read u; do u=`echo \$u|tr -d ' '; \textbackslash\\
+		p=`tr -dc 'A-Za-z0-9!@\#\$\%'</dev/urandom|head -c 24; \textbackslash\\
+		echo`; echo "\$s,\$u,\$p" >> "Team25\_\$\{s\}\_PWD.csv"; \textbackslash\\
+		done < users.txt}
 	\item Actually reset passwords using the generated list from the command immediately preceeding this \\
 		\code{awk -F, '\{ print \$2":"\$3 \}' ./<generated\_file.csv> | sudo chpasswd}
 	\item Find users not in \bf{./known\_users.txt} \\
-		\code{awk -F: '\{if(\$3>{}=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd|sort|comm -13 \textbackslash \\
+		\code{awk -F: '\{if(\$3>{}=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd| \textbackslash \\
+		sort|comm -13
 		known\_users.txt -> extra\_users.txt}
 	\item Remove crontabs from list of users in \bf{./users.txt} \\
 		\code{while read u; do sudo crontab -u \$u -r; done < users.txt}
