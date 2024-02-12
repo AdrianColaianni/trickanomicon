@@ -142,7 +142,7 @@
 		\begin{enumerate}
 			\item Populate the machines with the ssh key from lead linux captain
 			\item Deploy with \code{\bf{ssh-copy-id -i} \ul{identity\_file} [\ul{user}@\ul{hostname}]}
-			\item Ensure there is only one entry (one line) in \code{/home/<user>/.ssh/authorized\_keys}. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
+			\item Ensure there is only one entry (one line) in \code{/home/\ul{user}/.ssh/authorized\_keys}. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
 			\item Remove all other authorized keys files with \code{find / -name authorized\_keys}
 		\end{enumerate}
 	\item Check accounts and reset password \bf{ASAP} using appropriate one liners from \hyperref[subsec:dmagic]{Duncan's Magic}
@@ -189,7 +189,7 @@
 		\begin{enumerate}
 			\item Default deny with \code{iptables -P INPUT DROP}
 			\item Allow port access (must choose tcp or udp) \\
-				\code{\bf{iptables -A INPUT -p tcp|udp --dport} \ul{port} \bf{-j ACCEPT}}
+				\code{\bf{iptables -A INPUT -p tcp}|\bf{udp --dport} \ul{port} \bf{-j ACCEPT}}
 			\item Allow all from interface \\
 				\code{\bf{iptables -A INPUT -i} \ul{interface} \bf{-j ACCEPT}}
 		\end{enumerate}
@@ -234,8 +234,9 @@
 \begin{enumerate}
 	\item List all files with creation date, most recent first: \code{find /usr /bin /etc \textbackslash \\
 		/var -type f -exec stat -c "\%W \%n" \{\} + | sort -r > files}
-	\item List all files created after set date, most recent first: \code{find /usr /bin /etc \textbackslash \\
-		/var -type f -newermt \ul{YYYY-MM-DD} -exec stat -c "\%W \%n" \{\} + | sort -r > files}
+	\item List all files created after set date, most recent first: \\
+		\code{find /usr /bin /etc /var -type f -newermt \ul{YYYY-MM-DD} -exec \textbackslash \\
+		stat -c "\%W \%n" \{\} + | sort -rn > files}
 \end{enumerate}
 
 \subsection{Duncan's Magic}
@@ -247,14 +248,12 @@
 	\item Generate new passwords for every user in \bf{./users.txt}. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for. \\
 		\code{s='SERVICE'; while read u; do u=`echo \$u|tr -d ' '; \textbackslash\\
 		p=`tr -dc 'A-Za-z0-9!@\#\$\%'</dev/urandom|head -c 24; \textbackslash\\
-		echo`; echo "\$s,\$u,\$p" >> "Team25\_\$\{s\}\_PWD.csv"; \textbackslash\\
-		done < users.txt}
+		echo`; echo \$s,\$u,\$p >> Team25\_\$\{s\}\_PWD.csv; done < users.txt}
 	\item Actually reset passwords using the generated list from the command immediately preceeding this \\
-		\code{awk -F, '\{ print \$2":"\$3 \}' ./<generated\_file.csv> | sudo chpasswd}
+		\code{awk -F, '\{print \$2":"\$3\}' \ul{file.csv} | sudo chpasswd}
 	\item Find users not in \bf{./known\_users.txt} \\
 		\code{awk -F: '\{if(\$3>{}=1000\&\&\$3<60000)\{print \$1\}\}' /etc/passwd| \textbackslash \\
-		sort|comm -13
-		known\_users.txt -> extra\_users.txt}
+		sort|comm -13 known\_users.txt -> extra\_users.txt}
 	\item Remove crontabs from list of users in \bf{./users.txt} \\
 		\code{while read u; do sudo crontab -u \$u -r; done < users.txt}
 \end{enumerate}
