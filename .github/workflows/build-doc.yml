@@ -1,17 +1,9 @@
-name: Build LaTeX document
+name: Build document
 on: [push]
 jobs:
-  build_latex:
-    runs-on: ubuntu-latest
+  convert_via_pandoc:
+    runs-on: ubuntu-22.04
     steps:
-      - name: Set up Git repository
-        uses: actions/checkout@v3
-      - name: Compile LaTeX document
-        uses: xu-cheng/latex-action@v3
+      - uses: docker://pandoc/core:2.9
         with:
-          root_file: trickanomicon.tex
-      - name: Upload PDF file
-        uses: actions/upload-artifact@v3
-        with:
-          name: PDF
-          path: trickanomicon.pdf
+          args: "-s --toc -c style.css --highlight-style rose-pine.theme trickanomicon.md -o trickanomicon.html"
