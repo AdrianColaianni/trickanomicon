@@ -251,7 +251,7 @@ Looking at auditd alerts
 
 1.  Logs are stored in `/var/log/audit/audit.log`
 
-    1.  You can use [`ausearch`] to query this log
+    1.  You can use `ausearch` to query this log
 
     2.  `aureport` can also be used to generate a
         list of events
@@ -352,30 +352,30 @@ Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 ``` powershell
 get-content "users.txt" | foreach {
 	$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-	get-random -Count 24 | % {[char]$\_});
-	add-content "Team25\_$(hostname)-SSH\_PWD.csv" "hostname,$\_,$secret"
+	get-random -Count 24 | % {[char]$_});
+	add-content "Team25_$(hostname)-SSH_PWD.csv" "hostname,$_,$secret"
 }
 ```
 3.  Reset Passwords based on generated password CSV file:
 ``` powershell
-import-csv "Team25\_$(hostname)-SSH\_PWD.csv" -Header "host","user","pass" |
-foreach {net user $\_.user $\_.pass};
-del "Team25\_$(hostname)-SSH\_PWD.csv"
+import-csv "Team25_$(hostname)-SSH_PWD.csv" -Header "host","user","pass" |
+foreach {net user $_.user $_.pass};
+del "Team25_$(hostname)-SSH_PWD.csv"
 ```
 4.  Audit accounts on system based on list of expected users:
 ``` powershell
 $expected = get-content "users.txt";
-$expected += $env:Username, "seccdc\_black"
+$expected += $env:Username, "seccdc_black"
 get-localuser | foreach {
-	if ($\_.Name -notin $expected) {
-		echo $\_.Name; add-content "unexpected.txt" $\_.Name
+	if ($_.Name -notin $expected) {
+		echo $_.Name; add-content "unexpected.txt" $_.Name
 	}
 }
 ```
 
 5.  Disable unauthorized accounts:
 ``` powershell
-get-content "unexpected.txt" | foreach {net user $\_ /active:no}
+get-content "unexpected.txt" | foreach {net user $_ /active:no}
 ```
 ## Hardening
 
@@ -391,7 +391,7 @@ get-content "unexpected.txt" | foreach {net user $\_ /active:no}
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled`
 
     3.  Disable WinRM.\
-        [`Disable-PSRemoting -Force`];\
+        `Disable-PSRemoting -Force`;\
         `Set-Service -Name "WinRM" -Status stopped -StartupType disabled`
 
     4.  Configure SMB:
@@ -537,8 +537,8 @@ gpupdate /force
 ``` yaml
 xpack.security.enabled: true
 xpack.security.enrollment.enabled: true
-cluster.initial\_master\_nodes: "elk"
-http.host: [\_local\_, \_site\_]
+cluster.initial_master_nodes: "elk"
+http.host: [_local_, _site_]
 ```
 3.  Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
 
@@ -555,7 +555,7 @@ http.host: [\_local\_, \_site\_]
 server.host: "0.0.0.0"
 server.publicBaseUrl: "http://localhost"
 elasticsearch.hosts: "http://localhost:9200"
-elasticsearch.username: "kibana\_system"
+elasticsearch.username: "kibana_system"
 elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
 elasticsearch.ssl.verificationMode: none
 ```
@@ -644,11 +644,11 @@ DROP USER '<USERNAME>'@<HOST>;
 
 ```
 # the below needs to be on one line
-disable\_functions=exec,passthru,shell\_exec,system,proc\_open,
-popen,curl\_exec,curl\_multi\_exec,parse\_ini\_file,show\_source
+disable_functions=exec,passthru,shell_exec,system,proc_open,
+popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
 
 # disable file uploads if they aren't needed
-file\_uploads=off
-allow\_url\_fopen=off
-allow\_url\_include=off
+file_uploads=off
+allow_url_fopen=off
+allow_url_include=off
 ```
