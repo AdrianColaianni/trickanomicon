@@ -50,16 +50,14 @@
     4.  Remove all other authorized keys files with
         `find / -name authorized_keys`
 
-3.  Check accounts and reset password **ASAP** using appropriate one
-    liners from [Duncan's Magic](#dmagic)
+3.  Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
 
 4.  Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
 
     1.  **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
-5.  Find listening services with `ss -lp` and
-    investigate strange ones
+5.  Find listening services with `ss -tunlp` and investigate strange ones
 
 ## Monitoring
 
