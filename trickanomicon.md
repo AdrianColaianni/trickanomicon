@@ -20,7 +20,7 @@
 3.  Each person will nmap scan the machine they are assigned and give
     results in the appropriate channel
 
-    1.  [Quick scan and save to a text file]{#nmap} \
+    1.  [Quick scan and save to a text file]{#nmap} 
         `a(){nmap -p- -T4 -Av -oN "nmap-$1.txt" $1};a <ip>`
 
 4.  Each person will log into their machine and do user management stuff
@@ -54,7 +54,7 @@
 
 4.  Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
 
-    1.  **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
+    1.  **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know).
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
 5.  Find listening services with `ss -tunlp` and investigate strange ones
@@ -111,7 +111,7 @@
 
     1.  Default deny with `iptables -P INPUT DROP`
 
-    2.  Allow port access (must choose tcp or udp) \
+    2.  Allow port access (must choose tcp or udp)
 		`iptables -A INPUT -p <tcp|udp> –dport <port> -j ACCEPT`
 
     4.  Allow all from interface `iptables -A INPUT -i <interface> -j ACCEPT`
@@ -155,54 +155,54 @@ PermitEmptyPasswords no
 
 2.  File system configs are in `/etc/fstab`
 
-    1.  Network File Shares are in the form \
-        `/srv/home hostname1(rw,sync,no_subtree_check)` \
+    1.  Network File Shares are in the form
+        `/srv/home hostname1(rw,sync,no_subtree_check)`
         These allow sharing file systems over the network. They must be reviewed to ensure we are not sharing information with attackers
 
 ## Hunting
 
 1.  List all files with creation date, most recent first:
-    `find /usr /bin /etc \` \
+    `find /usr /bin /etc \`
     `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
 
-2.  List all files created after set date, most recent first: \
-    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
+2.  List all files created after set date, most recent first:
+    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \`
     `stat -c "%W %n" {} + | sort -rn > files`
 
 ## Duncan's Magic {#dmagic}
 
-1.  Remove users listed in **./disable.txt**\
+1.  Remove users listed in **./disable.txt**
     `while read user;do sudo usermod -L $user;done<disable.txt`
 
-2.  Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.\
-    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` \
-    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` \
+2.  Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.
+    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` 
+    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` 
     `echo $s,$u,$p; done < users.txt > Team25_${s}_PWD.csv`
 
-3.  Actually reset passwords using the generated list from the command immediately preceeding this\
+3.  Actually reset passwords using the generated list from the command immediately preceeding this
     `awk -F, '{print $2":"$3}' <file.csv> | sudo chpasswd`
 
-4.  Find users not in **./known_users.txt** \
-    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` \
+4.  Find users not in **./known_users.txt** 
+    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` 
     `sort - known_users.txt | uniq -u > extra_users.txt`
 
-5.  Remove crontabs from list of users in **./users.txt** \
+5.  Remove crontabs from list of users in **./users.txt** 
     `while read u; do sudo crontab -u $u -r; done < users.txt`
 
 ## Hardening
 
 You should remount /tmp and /var/tmp to be non-executable.
 
-1.  If /tmp and /var/tmp are already mounted, you can simply do: \
-    `mount -o remount,nodev,nosuid,noexec /tmp`\
+1.  If /tmp and /var/tmp are already mounted, you can simply do: 
+    `mount -o remount,nodev,nosuid,noexec /tmp`
     `mount -o remount,nodev,nosuid,noexec /var/tmp `
 
-2.  If they haven't already been mounted, edit /etc/fstab to include: \
-    `tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0`\
+2.  If they haven't already been mounted, edit /etc/fstab to include: 
+    `tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0`
     `tmpfs /var/tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 `
 
-3.  Once /etc/fstab has been updated, you can run: \
-    `mount -o nodev,nosuid,noexec /tmp`\
+3.  Once /etc/fstab has been updated, you can run: 
+    `mount -o nodev,nosuid,noexec /tmp`
     `mount -o nodev,nosuid,noexec /var/tmp `
 
 ## Disaster Recovery
@@ -279,90 +279,117 @@ Looking at auditd alerts
 
 ## 30 Minute Plan
 
-1.  Download Sysinternals
-    Suite(https://download.sysinternals.com/files/SysinternalsSuite.zip).
+**NOTE: If you are in an AD environment, see [Active Directory Considerations](#active-directory-considerations)**
 
-2.  Perform an Nmap scan on machine and note which ports should be
-    accessible.
+1.  Perform an Nmap scan on machine and note which ports should be accessible.
 
-3.  Run/Download the following:\
+2.  Run/Download the following: \
     `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
 
-    1.  [Sysinternals
-        Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip),
-        [Sysmon
-        Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml),
+    1.  [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip),
+        [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml),
         [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)
 
     2.  [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows)
-        and
         [BLUESPAWN](https://github.com/ION28/BLUESPAWN/releases/download/v0.5.1-alpha/BLUESPAWN-client-x64.exe)
 
-4.  Change authorized account passwords **including your own** with
-    [one-liner](#woliner).
+3.  Change authorized account passwords **including your own** with [one-liner](#windows-one-liners).
 
-5.  Disable unauthorized user accounts **except your own and
-    seccdc_black** with [one-liner](#woliner).
+4.  Disable unauthorized user accounts **except your own and seccdc_black** with [one-liner](#windows-one-liners).
 
-6.  Find and remove authorized SSH keys.
-    `dir C:\ -Recurse | findstr "authorized_keys"`
+5.  Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
+``` powershell
+# search for keys on the entire disk
+dir C:\ -Recurse -Filter "authorized_keys"
 
-7.  Once Nmap scan completes, configure Firewall.\
-    **NOTE: Rules SHOULD specify applications AND source/destination
-    IPs.\
+# search for keys in C:\ProgramData\ssh
+dir C:\ProgramData\ssh -Filter "administrators_authorized_keys"
+
+# check ssh config in C:\ProgramData\ssh\ or C:\Program File\OpenSSH\
+```
+
+6.  Once Nmap scan completes, configure Firewall.
+    **NOTE: Rules SHOULD specify applications AND source/destination IPs.
     Do this via the GUI after rules are made.**
 
-    1.  Export current firewall policy.\
+    1.  Export current firewall policy.  
         `netsh advfirewall export "C:\rules.wfw"`
 
-    2.  Disable firewall.\
+    2.  Disable firewall.  
         `netsh advfirewall set allprofiles state off`
 
-    3.  Flush inbound/outbound rules.\
+    3.  Flush inbound/outbound rules.  
         `Remove-NetFirewallRule`
 
-    4.  Allow RDP (svchost.exe 3389 TCP), SSH (sshd.exe 22 TCP), and
-        scored service.\
-        `$port = <PORT>; New-NetFirewallRule -DisplayName "Inbound $port" ‘`\
-        `-Direction Inbound -LocalPort $port -Protocol TCP ‘`\
-        `-Action Allow -Program "Path\To\Executable"`
+    4.  Allow RDP (svchost.exe 3389 TCP), SSH (sshd.exe 22 TCP), and scored service.
+``` powershell
+$port = <PORT>; New-NetFirewallRule -DisplayName "Inbound $port" `
+-Direction Inbound -LocalPort $port -Protocol TCP `
+-Action Allow -Program "Path\To\Executable"
+```
 
-    5.  Configure outbound rules as needed (DNS: 53 TCP/UDP, HTTP:
-        80,443 TCP).\
-        `$port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" ‘`\
-        `-Direction Outbound -RemotePort $port -Protocol TCP ‘`\
-        `-Action Allow -Program "Path\To\Executable"`
+    5.  Configure outbound rules as needed (DNS: 53 TCP/UDP, HTTP: 80,443 TCP).
+``` powershell
+$port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" `
+-Direction Outbound -RemotePort $port -Protocol TCP `
+-Action Allow -Program "Path\To\Executable"
+```
 
-    6.  Re-enable firewall to block inbound and outbound (allow outbound
-        on AD).\
-        `netsh advfirewall set allprofiles firewallpolicy blockinbound blockoutbound`
-        `netsh advfirewall set allprofiles state on`
+    6.  Re-enable firewall to block inbound and outbound (allow outbound on AD).
+``` powershell
+netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound
+netsh advfirewall set allprofiles state on
+```
+   
+## Windows One-Liners
 
-    **NOTE: If you are in an AD environment, see [Active Directory
-    Considerations](#adcon).**
-
-## One-Liners {#woliner}
-
-1.  Install Scoop Package Manager (Recommended):\
+1.  Install Scoop Package Manager (Recommended):
 ``` powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
 Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 ```
-2.  Generate CSV file with Passwords **(NOT NECESSARY FOR QUALIFIERS)**:
+
+2.  Generate CSV file with passwords and send to captain:
 ``` powershell
+$upper = ([char]'A'..[char]'Z');
+$lower = ([char]'a'..[char]'z');
+$special = ([char]'#'..[char]'&');
+
+function generate-password {
+	$secret = -join ($upper + $lower + $special | get-random -Count 24 | foreach {[char]$_});
+    return $secret;
+}
+
 get-content "users.txt" | foreach {
-	$secret = -join (([char]'A'..[char]'Z' + [char]'#'..[char]'&') |
-	get-random -Count 24 | % {[char]$_});
-	add-content "Team25_$(hostname)-SSH_PWD.csv" "hostname,$_,$secret"
+    do {
+        $secret = generate-password;
+    } while (($secret.IndexOfAny($upper) -eq -1) -or ($secret.IndexOfAny($lower) -eq -1) -or ($secret.IndexOfAny($special) -eq -1))
+	add-content "$(hostname).csv" "$(hostname),$_,$secret"
 }
 ```
 3.  Reset Passwords based on generated password CSV file:
+
+Local Machine:
 ``` powershell
-import-csv "Team25_$(hostname)-SSH_PWD.csv" -Header "host","user","pass" |
+import-csv "$(hostname).csv" -Header "host","user","pass" |
 foreach {net user $_.user $_.pass};
-del "Team25_$(hostname)-SSH_PWD.csv"
+# this line is included to ensure that you remove the file from the system
+# ensure you have taken a backup of this file somewhere before deleting it
+del "$(hostname).csv"
 ```
+
+Domain:
+``` powershell
+import-csv "$(hostname).csv" -Header "host","user","pass" |
+foreach {net user $_.user $_.pass /domain};
+# this line is included to ensure that you remove the file from the system
+# ensure you have taken a backup of this file somewhere before deleting it
+del "$(hostname).csv"
+```
+
 4.  Audit accounts on system based on list of expected users:
+
+Local Machine:
 ``` powershell
 $expected = get-content "users.txt";
 $expected += $env:Username, "seccdc_black"
@@ -373,42 +400,59 @@ get-localuser | foreach {
 }
 ```
 
+Domain:
+``` powershell
+$expected = get-content "users.txt";
+$expected += $env:Username, "seccdc_black", "krbtgt"
+get-aduser -Filter * | foreach {
+	if ($_.Name -notin $expected) {
+		echo $_.Name; add-content "unexpected.txt" $_.Name
+	}
+}
+```
+
 5.  Disable unauthorized accounts:
+
+Local Machine:
 ``` powershell
 get-content "unexpected.txt" | foreach {net user $_ /active:no}
 ```
+
+Domain:
+``` powershell
+get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
+```
+
 ## Hardening
 
-1.  Configure NLA for RDP (can also be done through Group Policy).
-
-2.  Service Management:
+1.  Service Management:
 
     1.  Look at running services and see if any look malicious. Services
-        can be deleted from:
+        can be deleted from:  
         `HKLM\SYSTEM\CurrentControlSet\Services`
 
-    2.  Disable Print Spooler.\
+    2.  Disable Print Spooler.    
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled`
 
-    3.  Disable WinRM.\
-        `Disable-PSRemoting -Force`;\
+    3.  Disable WinRM.  
+        `Disable-PSRemoting -Force`;
         `Set-Service -Name "WinRM" -Status stopped -StartupType disabled`
 
     4.  Configure SMB:
 
         1.  If SMB is unneeded (i.e. not in an AD setting), disable it
-            entirely.\
+            entirely.  
             `Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled`
 
-        2.  If SMB is needed, disable SMBv1.\
+        2.  If SMB is needed, disable SMBv1.  
             `Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol`
 
     5.  Harden the scored service for your machine according to the
-        documentation below(#sec:services).
+        documentation [below](#Services).
 
-3.  Group Policy:
+2.  Group Policy (Done via DC ONLY):
 
-    1.  Check User Rights Assignment
+    1.  Configure LSASS Security
 
 ## Monitoring
 
@@ -420,7 +464,7 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no}
 
 4.  View all connected sessions with `qwinsta`.
 
-5.  To get an insight into Powershell activity, enable Powershell Block Logging/Transcription. \
+5.  To get an insight into Powershell activity, enable Powershell Block Logging/Transcription.  
     `Administrative Templates > Windows Components > Windows Powershell`
 
 6.  For an overview of system activity, configure Sysmon with [this config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
@@ -433,7 +477,7 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no}
 
 7.  You can view system events with the Event Viewer or Nirsoft's [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip).
 
-    1.  You can filter down events to Sysmon\*, Powershell\*, and Security.
+    1.  You can filter down events to Sysmon*, Powershell*, and Security.
 
     2.  Configure additional auditing as needed.
 
@@ -447,20 +491,38 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no}
 
 ## Hunting
 
-1.  Install [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) and run a system scan. It can be installed silently with: \
+1.  Install [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) and run a system scan. It can be installed silently with:  
     `.\MBSetup.exe /VERYSILENT /NORESTART`
 
 2.  You can scan the system for unsigned dlls with `listdlls -u`
 
-3.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.\
-    `C:\Windows\System32` \
-    `HKLM\SYSTEM\CurrentControlSet\Services`
+3.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
+```
+C:\Windows\System32
+HKLM\SYSTEM\CurrentControlSet\Services
+```
 
-4.  The Autoruns utility can be used to find potential persistence mechanisms. Task Scheduler and RunKeys should also be checked. \
-    `HKLM\Software\Microsoft\Windows\CurrentVersion\Run` \
-    `HKLM\Software\Microsoft\Windows\CurrentVersion\RunOnce` \
-    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` \
-    `HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce`
+4.  The Autoruns utility can be used to find potential persistence mechanisms. Task Scheduler and RunKeys should also be checked.
+```
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx\
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServices\
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServicesOnce\
+\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\
+
+\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
+\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
+\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServices\
+\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServicesOnce\
+\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\
+
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\ 
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
+
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
+```
 
 5.  You can use BLUESPAWN to aid in hunting, **BUT DO NOT RELY ON IT SOLELY.**
 
@@ -477,9 +539,11 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no}
         3.  BLUESPAWN-client-x64.exe --monitor is like hunt but alerts
             on new activity.
 
-## Considerations for Active Directory {#adcon}
+## Active Directory Considerations
 
 The below ports are needed for Active Directory to operate:
+
+**These should be allowed inbound and outbound on a DC and and outbound on a DM.**
 
 ```
 53 TCP/UDP: DNS
@@ -490,19 +554,46 @@ The below ports are needed for Active Directory to operate:
 389,636 TCP: LDAP & LDAPS
 445 TCP: SMB
 464 TCP: Kerberos password change
+49152,49153 TCP: RPC*
 3268,3269 TCP: Global Catalog LDAP & LDAPS
+
+*This is assuming you have defined 49152 and 49153 as fixed RPC ports (see below).
 ```
 
-**These should be allowed inbound and outbound on a DC and outbound on a DM.**
-
-The following template might help with making rules:
+RPC typically uses a large range of ports to establish ephemeral connections. You can restrict this by using the following one-liners:
 
 ``` powershell
-$ports = 53,88,123,135,138,139,389,636,445,464,3268,3269;
-foreach ($p in $ports) {New-NetFirewallRule -DisplayName "AD $p" `
--[LOCALPORT/REMOTEPORT] $p -Protocol [TCP/UDP] `
--Action Allow -Direction [INBOUND/OUTBOUND]
+# sets RPC to 1024 and 1025; this requires a server restart to take effect
+reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" /t REG_DWORD /d 49152
+
+reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
+```
+
+The following script will generate rules for you automatically:
+
+``` powershell
+$members = get-adcomputer -filter * -properties IPv4Address;
+
+$tcpports = 53,88,123,135,138,139,389,636,445,464,1024,1025,3268,3269;
+foreach ($p in $tcpports) {
+    New-NetFirewallRule -DisplayName "AD $p TCP IN" `
+    -LocalPort $p -Protocol TCP `
+    -Action Allow -Direction Inbound -RemoteAddress $members;
+    New-NetFirewallRule -DisplayName "AD $p TCP OUT" `
+    -LocalPort $p -Protocol TCP `
+    -Action Allow -Direction Outbound -RemoteAddress $members;
 }
+
+$udpports = 53,88,139,139;
+foreach ($p in $udpports) {
+    New-NetFirewallRule -DisplayName "AD $p UDP IN" `
+    -LocalPort $p -Protocol UDP `
+    -Action Allow -Direction Inbound -RemoteAddress $members;
+    New-NetFirewallRule -DisplayName "AD $p UDP OUT" `
+    -LocalPort $p -Protocol UDP `
+    -Action Allow -Direction Outbound -RemoteAddress $members;
+}
+
 ```
 
 1.  Many of the above steps can be done across multiple machines via Group Policy.
@@ -520,89 +611,29 @@ dcgpofix /target:both
 gpupdate /force
 ```
 
-## Installing the ELK Stack
-
-1.  Install the prerequisites using manually or using scoop (see below).\
-    [If using scoop, apps are installed in \$HOME/scoop/apps/\<APPNAME\>/current.]{.underline}
-
-    1.  Add the 'extras' repository with `scoop bucket add extras`.
-
-    2.  Add the 'java' repository with `scoop bucket add java`.
-
-    3.  Install elasticsearch and kibana with `scoop install elasticsearch kibana openjdk`.
-
-    4.  Notepad++ (notepadplusplus) is recommended for editing the yml files.
-
-2.  Add the following lines to `<ELASTICSEARCH DIR>/config/elasticsearch.yml`:
-``` yaml
-xpack.security.enabled: true
-xpack.security.enrollment.enabled: true
-cluster.initial_master_nodes: "elk"
-http.host: [_local_, _site_]
-```
-3.  Start elasticsearch in a Powershell prompt. It will take a moment to initialize.
-
-4.  Reset passwords for the kibana_system and elastic accounts.
-
-    1.  `<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u kibana-system`
-
-    2.  `<ELASTICSEARCH DIR>/bin/elasticsearch-reset-password -u elastic`
-
-    **SAVE THESE PASSWORDS SOMEWHERE.**
-
-5.  Add the following lines to `<KIBANA DIR>/config/kibana.yml`:
-``` yaml
-server.host: "0.0.0.0"
-server.publicBaseUrl: "http://localhost"
-elasticsearch.hosts: "http://localhost:9200"
-elasticsearch.username: "kibana_system"
-elasticsearch.password: "<GENERATED KIBANA-SYSTEM PASSWORD>"
-elasticsearch.ssl.verificationMode: none
-```
-6.  Stop the elasticsearch executable and install it as a service with: \
-    `<ELASTICSEARCH DIR>/bin/elasticsearch-service.bat install`
-
-7.  Start the elasticsearch service with `start-service elasticsearch-service-x64`
-
-8.  Start kibana in a Powershell prompt. It will take a moment to initialize.
-
-9.  You may now log into kibana at localhost:5601 with the elastic account.
-
-## Configuring Winlogbeat
-
-1.  You can obtain Winlogbeat from [here](https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-8.12.0-windows-x86_64.zip).
-
-2.  Extract the Winlogbeat directory to C:\\Program Files.
-
-3.  Edit the winlogbeat.yml file as needed for environment and log forwarding.
-
-4.  Install Winlogbeat as a service with `.\install-service-winlogbeat.ps1`
-
-5.  Load the prebuilt Winlogbeat assets with `.\winlogbeat.exe setup -e`.
-
-6.  Start the Winlogbeat service with `start-service winlogbeat`
-
-# Service Configuration {#sec:services}
+# Services
 
 ## MySQL
 
-1.  Change passwords for any non-scored users. \
+1.  Change passwords for any non-scored users,
 ``` sql
-SELECT User, Host FROM mysql.user; \
-ALTER USER '<USERNAME>'@<HOST> IDENTIFIED BY '<NEW PASSWORD>';
+SELECT User, Host FROM mysql.user;
+ALTER USER '<USERNAME>'@'<HOST>' IDENTIFIED BY '<NEW PASSWORD>';
 ```
 
-2.  Drop unauthorized users. \
+2.  Drop unauthorized users.
 ``` sql
-SELECT User, Host FROM mysql.user; \
-DROP USER '<USERNAME>'@<HOST>;
+SELECT User, Host FROM mysql.user;
+DROP USER '<USERNAME>'@'<HOST>';
 ```
 
-4.  Prepare a database backup and store somewhere safe **off the system**.
+3.  Prepare a database backup and store somewhere safe **off the system**.
 
-    1.  Backup: `mysqldump -u <USERNAME> -p –all-databses > <BACKUP PATH>`
+    1.  Backup: `mysqldump -u <USERNAME> -p –-all-databases --host <HOST> > <BACKUP PATH>`
 
-    2.  Restore: `mysql -u <USERNAME> -p < <BACKUP PATH>`
+    2.  Restore: `mysql -u <USERNAME> -p --host <HOST> < <BACKUP PATH>`
+
+    If using Powershell to restore, do this instead: `Get-Content <BACKUP PATH> | mysql -u <USERNAME> -p --host <HOST>`
 
 ## FTP
 
@@ -643,11 +674,10 @@ DROP USER '<USERNAME>'@<HOST>;
     4.  Add the following lines to the end of each config file:
 
 ```
-# the below needs to be on one line
-disable_functions=exec,passthru,shell_exec,system,proc_open,
-popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
+# disables commonly exploited functions
+disable_functions=exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
 
-# disable file uploads if they aren't needed
+# disable file uploads only if they aren't needed
 file_uploads=off
 allow_url_fopen=off
 allow_url_include=off
