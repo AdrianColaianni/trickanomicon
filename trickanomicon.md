@@ -563,7 +563,7 @@ The below ports are needed for Active Directory to operate:
 RPC typically uses a large range of ports to establish ephemeral connections. You can restrict this by using the following one-liners:
 
 ``` powershell
-# sets RPC to 1024 and 1025; this requires a server restart to take effect
+# sets RPC to 49152 and 49153; this requires a server restart to take effect
 reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" /t REG_DWORD /d 49152
 
 reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
@@ -574,7 +574,7 @@ The following script will generate rules for you automatically:
 ``` powershell
 $members = get-adcomputer -filter * -properties IPv4Address;
 
-$tcpports = 53,88,123,135,138,139,389,636,445,464,1024,1025,3268,3269;
+$tcpports = 53,88,123,135,138,139,389,636,445,464,3268,3269,49152,49153;
 foreach ($p in $tcpports) {
     New-NetFirewallRule -DisplayName "AD $p TCP IN" `
     -LocalPort $p -Protocol TCP `
@@ -673,7 +673,7 @@ DROP USER '<USERNAME>'@'<HOST>';
 
     4.  Add the following lines to the end of each config file:
 
-```
+``` php
 # disables commonly exploited functions
 disable_functions=exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
 
