@@ -12,24 +12,22 @@
 ## High-Level First 30 Minutes Plan
 
 1.  Lead captain will do a ping sweep scan to see what's on the
-    network + an rdp port scan to figure out which machines are windows
+    network + an rdp port scan to figure out which machines are windows.
 
 2.  Machines get assigned to people (and this will be written down on a
-    whiteboard that we can all see)
+    whiteboard that we can all see).
 
 3.  Each person will nmap scan the machine they are assigned and give
-    results in the appropriate channel
+    results in the appropriate channel.
 
-    1.  [Quick scan and save to a text file]{#nmap} 
+    1.  Quick scan and save to a text file
         `a(){nmap -p- -T4 -Av -oN "nmap-$1.txt" $1};a <ip>`
 
-4.  Each person will log into their machine and do user management stuff
+4.  Each person will log into their machine and do user management stuff.
 
-5.  Each person will do system hardening + firewalls (or let firewall
-    guru do their thing) for their machine
+5.  Each person will do system hardening + firewalls for their machine.
 
-6.  Each person will monitor their machine for activity from there on
-    out unless they're helping with an inject
+6.  Each person will monitor their machine for activity from there on out unless they're helping with an inject.
 
 # Linux
 
@@ -37,7 +35,7 @@
 
 ## 30 Minute Plan
 
-1.  [NMAP Scan Machine](#nmap) in background
+1.  NMAP Scan Machine in background
 
 2.  Rotate all ssh keys
 
@@ -223,7 +221,7 @@ You should remount /tmp and /var/tmp to be non-executable.
 
     1.  **Alert the team**
 
-    2.  [Start nmap scan](#nmap)
+    2.  Start nmap scan
 
     3.  Try verbose ssh `ssh -v <user>@<ip>`
 
@@ -281,34 +279,41 @@ Looking at auditd alerts
 
 **NOTE: If you are in an AD environment, see [Active Directory Considerations](#active-directory-considerations)**
 
-1.  Perform an Nmap scan on machine and note which ports should be accessible.
+1.  Conduct network discovery on machine and note which ports should be accessible.
+    1.  If available, run an Nmap scan on your machine.
+    2.  If unavailable, you can use `netstat -aonb`.
 
-2.  Run/Download the following: \
-    `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+2. Change your account password to a known password and create an authorized_keys file for your user with the SSH key given to you.
 
-    1.  [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip),
-        [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml),
-        [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)
+3. Create a new user on the system with a username that mimics a system account (example: "Default").
+   Set the password to a known password and create an authorized_keys file for the user with the SSH key given to you.
 
-    2.  [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows)
-        [BLUESPAWN](https://github.com/ION28/BLUESPAWN/releases/download/v0.5.1-alpha/BLUESPAWN-client-x64.exe)
-
-3.  Change authorized account passwords **including your own** with [one-liner](#windows-one-liners).
-
-4.  Disable unauthorized user accounts **except your own and seccdc_black** with [one-liner](#windows-one-liners).
-
-5.  Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
 ``` powershell
-# search for keys on the entire disk
-dir C:\ -Recurse -Filter "authorized_keys"
+# creating a local user named Default and adding them to Administrators
+new-localuser "Default"
+add-localgroupmember -group "Administrators" -Member "Default"
 
-# search for keys in C:\ProgramData\ssh
-dir C:\ProgramData\ssh -Filter "administrators_authorized_keys"
-
-# check ssh config in C:\ProgramData\ssh\ or C:\Program File\OpenSSH\
+# adding a domain user named Default to the Domain Administrators group
+new-aduser "Default"
+add-adgroupmember -Identity "Domain Administrators" -Members "Default"
 ```
 
-6.  Once Nmap scan completes, configure Firewall.
+4. Generate account passwords for authorized with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
+
+5. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
+
+6. Ensure the built-in Administrator account is disabled and rename it with `wmic useraccount where name='Administrator' rename 'OldAdmin'`
+
+7. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
+``` powershell
+# search for keys on the entire disk
+dir C:\ -Force -Recurse -Filter "*authorized_keys"
+
+# check ssh config in C:\ProgramData\ssh\ for additional authorized key names/locations
+type C:\Program Files\OpenSSH\sshd_config
+```
+
+8.  After network discovery completes, configure Firewall.
     **NOTE: Rules SHOULD specify applications AND source/destination IPs.
     Do this via the GUI after rules are made.**
 
@@ -321,7 +326,7 @@ dir C:\ProgramData\ssh -Filter "administrators_authorized_keys"
     3.  Flush inbound/outbound rules.  
         `Remove-NetFirewallRule`
 
-    4.  Allow RDP (svchost.exe 3389 TCP), SSH (sshd.exe 22 TCP), and scored service.
+    4.  Allow RDP (C:\Windows\System32\svchost.exe 3389 TCP), SSH (C:\<PATH TO SSH DIR>\sshd.exe 22 TCP), and scored service.
 ``` powershell
 $port = <PORT>; New-NetFirewallRule -DisplayName "Inbound $port" `
 -Direction Inbound -LocalPort $port -Protocol TCP `
@@ -340,10 +345,19 @@ $port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" `
 netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound
 netsh advfirewall set allprofiles state on
 ```
+
+    7. Enable firewal logging for all profiles:
+``` powershell
+set allprofiles logging allowedconnections enable
+set allprofiles logging droppedconnections enable
+```
+
+9. Proceed to [System Hardening](#hardening-1)
+
    
 ## Windows One-Liners
 
-1.  Install Scoop Package Manager (Recommended):
+1.  Install Scoop Package Manager:
 ``` powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
 Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
@@ -378,7 +392,7 @@ foreach {net user $_.user $_.pass};
 del "$(hostname).csv"
 ```
 
-Domain:
+Domain Controller:
 ``` powershell
 import-csv "$(hostname).csv" -Header "host","user","pass" |
 foreach {net user $_.user $_.pass /domain};
@@ -400,7 +414,7 @@ get-localuser | foreach {
 }
 ```
 
-Domain:
+Domain Controller:
 ``` powershell
 $expected = get-content "users.txt";
 $expected += $env:Username, "seccdc_black", "krbtgt"
@@ -423,6 +437,22 @@ Domain:
 get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
 ```
 
+## Helpful Tools
+
+If internet access is available, you can download the following tools to aid with security:
+
+**NOTE** If using powershell to curl, you will need to run the following to enable TLS:
+`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+
+1.  For system logging and monitoring:  
+    [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip)  
+    [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml)  
+    [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)  
+
+2.  For antivirus scanning:  
+    [Microsoft Safety Scanner](https://learn.microsoft.com/en-us/microsoft-365/security/defender/safety-scanner-download?view=o365-worldwide) (portable)  
+    [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)  
+
 ## Hardening
 
 1.  Service Management:
@@ -444,30 +474,55 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
             entirely.  
             `Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled`
 
-        2.  If SMB is needed, disable SMBv1.  
-            `Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol`
+        2.  If SMB is needed, do the following:
+
+            1. List out all shares on the system with `net share`.
+                Remove any unrecognized shares with `Remove-SmbShare -Name <SHARENAME>`
+                Administrative shares (ADMIN\$, IPC\$, C\$, NETLOGON, SYSVOL) should not be removed.
+            2. Disable SMBv1.  
+                `Set-SmbServerConfiguration -EnableSMB1Protocol $False -Force`
+
+            3. Disable SMB Compression:
+                ``Set-SmbServerConfiguration -DisableCompression $True -Force``
 
     5.  Harden the scored service for your machine according to the
         documentation [below](#Services).
 
 2.  Group Policy (Done via DC ONLY):
 
-    1.  Configure LSASS Security
+    1.  Hardening Policy
+        1.  Firewall:
+            1.  Computer Configuration > Policies > Windows Settings > Security Settings > System Services > Windows Firewall: Automatic
+            2.  Computer Configuration > Policies > Administrative Templates > Network > Network Connections > Windows Defender > Firewall > Domain Profile > Protect all network connections: Enabled
+            3.  Computer Configuration > Windows Settings > Security Settings > Windows Firewall with Advanced Security > Firewall State
+                1.  Turn on for all profiles and block inbound/outbound traffic.
+            4.  Time permitting, create explicit rules to block outbound connections from regsvr32, rundll, cmd, and powershell.
+    2.  Audit Policy
+        1.  Powershell Block/Module Logging: `Administrative Templates > Windows Components > Windows Powershell`
+    3.  After policy has been configured, run `gpupdate /force` to replicate the policy to other machines.
+   
+3.  ACLs (Not Recommended):
+   1.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
+```
+Examples:
+C:\Windows\System32
+HKLM\SYSTEM\CurrentControlSet\Services
+```
 
 ## Monitoring
 
 1.  View all network connections with `netstat -aonb`. For a live view, use TCPView.
 
-2.  View running processes in the details pane of Task Manager or via Process Explorer.
+2.  View running processes in the details pane of Task Manager, via Process Explorer, or with `tasklist`. Kill a process with `taskkill /f /pid <PID>`.
 
 3.  View all shares with `net share` and connected Named Pipes / Shares with `net use`.
 
-4.  View all connected sessions with `qwinsta`.
+4.  Viewing logons:
+    1.  All logged on users with `Get-CimInstance -ClassName Win32_LogonSession | Get-CimAssociatedInstance -Association Win32_LoggedOnUser`
+   
+5.  View all connected RDP sessions with `qwinsta` and kill sessions with `rwinsta <SESSION ID>`.
 
-5.  To get an insight into Powershell activity, enable Powershell Block Logging/Transcription.  
-    `Administrative Templates > Windows Components > Windows Powershell`
-
-6.  For an overview of system activity, configure Sysmon with [this config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
+6.  For more insight into system activity, configure Sysmon with [this config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
 
     1.  To install Sysmon, run `sysmon -i <PATH TO CONFIG FILE>`.
 
@@ -481,18 +536,9 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
 
     2.  Configure additional auditing as needed.
 
-## Response
-
-1.  Kill a connected session with
-    `rwinsta <SESSION ID>`.
-
-2.  Kill a process in Task Manager/Process Explorer or with
-    `taskkill /f /pid <PID>`.
-
 ## Hunting
 
-1.  Install [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) and run a system scan. It can be installed silently with:  
-    `.\MBSetup.exe /VERYSILENT /NORESTART`
+1.  Run a system scan with an antivirus. [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) can be installed silently with: `.\MBSetup.exe /VERYSILENT /NORESTART`
 
 2.  You can scan the system for unsigned dlls with `listdlls -u`
 
@@ -502,7 +548,7 @@ C:\Windows\System32
 HKLM\SYSTEM\CurrentControlSet\Services
 ```
 
-4.  The Autoruns utility can be used to find potential persistence mechanisms. Task Scheduler and RunKeys should also be checked.
+4.  The Autoruns utility can be used to find potential persistence mechanisms. Task Scheduler and registry keys (with reg query) should also be checked.
 ```
 \HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
 \HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
@@ -563,7 +609,7 @@ The below ports are needed for Active Directory to operate:
 RPC typically uses a large range of ports to establish ephemeral connections. You can restrict this by using the following one-liners:
 
 ``` powershell
-# sets RPC to 1024 and 1025; this requires a server restart to take effect
+# sets RPC to 49152 and 49153; this requires a server restart to take effect
 reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" /t REG_DWORD /d 49152
 
 reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
@@ -574,7 +620,7 @@ The following script will generate rules for you automatically:
 ``` powershell
 $members = get-adcomputer -filter * -properties IPv4Address;
 
-$tcpports = 53,88,123,135,138,139,389,636,445,464,1024,1025,3268,3269;
+$tcpports = 53,88,123,135,138,139,389,636,445,464,3268,3269,49152,49153;
 foreach ($p in $tcpports) {
     New-NetFirewallRule -DisplayName "AD $p TCP IN" `
     -LocalPort $p -Protocol TCP `
@@ -651,7 +697,7 @@ DROP USER '<USERNAME>'@'<HOST>';
 
 ## SSH
 
-1.  You can tunnel a port over ssh with the following syntax: \
+1.  You can tunnel a port over ssh with the following syntax:  
     `ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>`
 
 ## Web Servers
@@ -673,7 +719,7 @@ DROP USER '<USERNAME>'@'<HOST>';
 
     4.  Add the following lines to the end of each config file:
 
-```
+``` php
 # disables commonly exploited functions
 disable_functions=exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
 
