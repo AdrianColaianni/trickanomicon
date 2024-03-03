@@ -275,7 +275,7 @@ Looking at auditd alerts
 
 **Do not touch the** `seccdc_black` **account.**
 
-## 30 Minute Plan
+## Security Checklist
 
 **NOTE: If you are in an AD environment, see [Active Directory Considerations](#active-directory-considerations)**
 
@@ -293,27 +293,25 @@ Looking at auditd alerts
 new-localuser "Default"
 add-localgroupmember -group "Administrators" -Member "Default"
 
-# adding a domain user named Default to the Domain Administrators group
+# creating a domain user named Default to the Domain Administrators group
 new-aduser "Default"
 add-adgroupmember -Identity "Domain Administrators" -Members "Default"
 ```
 
-4. Generate account passwords for authorized with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
+4. Generate account passwords for authorized users with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
 
 5. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
 
-6. Ensure the built-in Administrator account is disabled and rename it with `wmic useraccount where name='Administrator' rename 'OldAdmin'`
-
-7. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
+6. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
 ``` powershell
 # search for keys on the entire disk
 dir C:\ -Force -Recurse -Filter "*authorized_keys"
 
-# check ssh config in C:\ProgramData\ssh\ for additional authorized key names/locations
+# check ssh config in C:\ProgramData\ssh\ and remove any entries for additional key locations
 type C:\Program Files\OpenSSH\sshd_config
 ```
 
-8.  After network discovery completes, configure Firewall.
+7.  After network discovery completes, configure Firewall.
     **NOTE: Rules SHOULD specify applications AND source/destination IPs.
     Do this via the GUI after rules are made.**
 
@@ -340,20 +338,19 @@ $port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" `
 -Action Allow -Program "Path\To\Executable"
 ```
 
-    6.  Re-enable firewall to block inbound and outbound (allow outbound on AD).
+    6.  Re-enable firewall to block inbound and outbound.
 ``` powershell
 netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound
 netsh advfirewall set allprofiles state on
 ```
 
-    7. Enable firewal logging for all profiles:
+    7. Enable firewall logging for all profiles:
 ``` powershell
 set allprofiles logging allowedconnections enable
 set allprofiles logging droppedconnections enable
 ```
 
-9. Proceed to [System Hardening](#hardening-1)
-
+8. Proceed to [System Hardening](#hardening-1)
    
 ## Windows One-Liners
 
@@ -439,9 +436,7 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
 
 ## Helpful Tools
 
-If internet access is available, you can download the following tools to aid with security:
-
-**NOTE** If using powershell to curl, you will need to run the following to enable TLS:
+**NOTE** If using powershell to curl, you will need to run the following to enable TLS:  
 `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
 
 1.  For system logging and monitoring:  
@@ -457,18 +452,14 @@ If internet access is available, you can download the following tools to aid wit
 
 1.  Service Management:
 
-    1.  Look at running services and see if any look malicious. Services
-        can be deleted from:  
-        `HKLM\SYSTEM\CurrentControlSet\Services`
-
-    2.  Disable Print Spooler.    
+    1.  Disable Print Spooler.    
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled`
 
-    3.  Disable WinRM.  
+    2.  Disable WinRM.  
         `Disable-PSRemoting -Force`;
         `Set-Service -Name "WinRM" -Status stopped -StartupType disabled`
 
-    4.  Configure SMB:
+    3.  Configure SMB:
 
         1.  If SMB is unneeded (i.e. not in an AD setting), disable it
             entirely.  
@@ -485,8 +476,8 @@ If internet access is available, you can download the following tools to aid wit
             3. Disable SMB Compression:
                 ``Set-SmbServerConfiguration -DisableCompression $True -Force``
 
-    5.  Harden the scored service for your machine according to the
-        documentation [below](#Services).
+    4.  Harden the scored service for your machine according to the
+        documentation [below](#Services). If on a DC, skip to Group Policy.
 
 2.  Group Policy (Done via DC ONLY):
 
@@ -536,19 +527,13 @@ HKLM\SYSTEM\CurrentControlSet\Services
 
     2.  Configure additional auditing as needed.
 
-## Hunting
+## Persistence
 
 1.  Run a system scan with an antivirus. [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) can be installed silently with: `.\MBSetup.exe /VERYSILENT /NORESTART`
 
-2.  You can scan the system for unsigned dlls with `listdlls -u`
+2.  The Autoruns utility can be used to find potential persistence mechanisms. Scheduled Tasks, Services, and registry keys (with reg query) should also be checked.
 
-3.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
-```
-C:\Windows\System32
-HKLM\SYSTEM\CurrentControlSet\Services
-```
-
-4.  The Autoruns utility can be used to find potential persistence mechanisms. Task Scheduler and registry keys (with reg query) should also be checked.
+* Run Keys & Startup Folder
 ```
 \HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
 \HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
@@ -570,20 +555,109 @@ HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folde
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
 ```
 
-5.  You can use BLUESPAWN to aid in hunting, **BUT DO NOT RELY ON IT SOLELY.**
+* AppCert DLLs
+    - Loaded into any process that calls CreateProcess, CreateProcessAsUser, CreateProcessWithLoginW, CreateProcessWithTokenW, WinExec
+```
+HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager
+```
 
-    1.  It can be obtained from [here](https://github.com/ION28/BLUESPAWN/releases/download/v0.5.1-alpha/BLUESPAWN-client-x64.exe).
+* AppInit DLLs
+    - Loaded by every process that uses user32.dll (almost all). Disabled in Windows 8+ if secure boot is enabled.
+```
+HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Windows
+HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows
+```
 
-    2.  Basic usage is as follows:
+* Component Object Model (COM) Hijacking
+    - User objects in this key will override machine objects in HKLM.
+```
+HKEY_CURRENT_USER\Software\Classes\CLSID\
+```
 
-        1.  BLUESPAWN-client-x64.exe --mitigate compares the system to a
-            secure baseline.
+* Netsh Helper DLLs
+    - Executes helper DLLs when executed which are registered at this key.
+```
+HKLM\SOFTWARE\Microsoft\Netsh
+```
 
-        2.  BLUESPAWN-client-x64.exe --hunt does a single-pass scan for
-            malicious activity.
+* Port Monitors
+    - Should only contain Appmon, Local Port, Microsoft Shared Fax Monitor, Standard TCP/IP Port, USB Monitor, WSD Port. Can be used to load arbitrary DLLs at startup, will run as SYSTEM.
+```
+HKLM\SYSTEM\CurrentControlSet\Control\Print\Monitors
+```
 
-        3.  BLUESPAWN-client-x64.exe --monitor is like hunt but alerts
-            on new activity.
+* Screensavers
+     - More than just bubbles and ribbons. Check SCRNSAVE.exe, make sure ScreenSaveIsSecure == 1.
+```
+HKCU\Control Panel\Desktop\
+```
+
+* Security Support Provider (SSP) DLLs
+    - Loaded into LSA at startup or when AddSecurityPackage is called. Let's red team see plaintext creds.
+```
+HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages
+HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\Security Packages
+```
+On Windows 8.1 & Server 2012R2, change AuditLevel to 8 to to require SSP DLLs to be signed.
+```
+HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe
+```
+
+* Password Filters
+    - Used to harvest creds anytime a password is changed. Should only contain sceli & rassfm as notification Packages.
+```
+HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Notification 
+```
+
+* Winlogon Helper DLL
+    - Handles actions at logon/logoff.
+```
+HKLM\Software[Wow6432Node]Microsoft\Windows NT\CurrentVersion\Winlogon\
+HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
+...\\Winlogon\Notify
+...\\Winlogon\Userinit
+...\\Winlogon\Shell
+```
+
+* Services
+    - Service configuration info is stored in keys in this folder. Monitor and inspect as needed.
+```
+HKLM\SYSTEM\CurrentControlSet\Services
+```
+
+* Scheduled Tasks
+    - Scheduled task configuration info is stored in keys in this folder. Monitor and inspect as needed.
+```
+HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tree\
+```
+
+### Common Backdoors
+* Sticky keys
+* Web shells
+* Malicious accounts
+* Golden ticket 
+* Keylogger
+* Packages
+
+### Services
+* Look for new services
+* Query services not on services.msc
+* Stop remote management services
+
+### Accounts, Groups, Permissions
+* Accounts in admin groups
+* New accounts
+* Changing password to existing accounts
+
+### Event Logs
+* Sysmon
+
+### Network Connections
+* Firewall log                %System32%\LogFiles\Firewall
+* Check that firewall config hasn't changed
+* netstat -fo
+
+3. You can scan the system for unsigned dlls with `listdlls -u`
 
 ## Active Directory Considerations
 
@@ -618,7 +692,7 @@ reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPo
 The following script will generate rules for you automatically:
 
 ``` powershell
-$members = get-adcomputer -filter * -properties IPv4Address;
+$members = get-adcomputer -filter * -properties IPv4Address | select-object -ExpandProperties IPv4Address;
 
 $tcpports = 53,88,123,135,138,139,389,636,445,464,3268,3269,49152,49153;
 foreach ($p in $tcpports) {
@@ -642,16 +716,13 @@ foreach ($p in $udpports) {
 
 ```
 
-1.  Many of the above steps can be done across multiple machines via Group Policy.
+1.  The krbtgt password should be reset with this [password reset script](https://github.com/microsoft/New-KrbtgtKeys.ps1).
 
-2.  The krbtgt password should be reset.
-
-3.  The Domain Administrators group should have minimum membership.
+2.  Audit domain groups for odd membership. Machine accounts can be exploited.
 
 4.  Kerberos authentication attempts should be monitored.
 
 5.  You can force a reset of domain group policy with the below commands:
-
 ```
 dcgpofix /target:both
 gpupdate /force
