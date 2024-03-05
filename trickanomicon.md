@@ -295,14 +295,16 @@ add-localgroupmember -group "Administrators" -Member "Default"
 
 # creating a domain user named Default to the Domain Administrators group
 new-aduser "Default"
-add-adgroupmember -Identity "Domain Administrators" -Members "Default"
+add-adgroupmember -Identity "Domain Admins" -Members "Default"
 ```
 
 4. Generate account passwords for authorized users with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
 
 5. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
 
-6. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
+6. **FOR PRIMARY DC ONLY** Audit members of `Domain Admins` and `Enterprise Admins` groups with [one-liner](#windows-one-liners).
+
+7. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
 ``` powershell
 # search for keys on the entire disk
 dir C:\ -Force -Recurse -Filter "*authorized_keys"
@@ -311,7 +313,7 @@ dir C:\ -Force -Recurse -Filter "*authorized_keys"
 type C:\Program Files\OpenSSH\sshd_config
 ```
 
-7.  After network discovery completes, configure Firewall.
+8.  After network discovery completes, configure Firewall.
     **NOTE: Rules SHOULD specify applications AND source/destination IPs.
     Do this via the GUI after rules are made.**
 
@@ -350,7 +352,7 @@ set allprofiles logging allowedconnections enable
 set allprofiles logging droppedconnections enable
 ```
 
-8. Proceed to [System Hardening](#hardening-1)
+9. Proceed to [System Hardening](#hardening-1)
    
 ## Windows One-Liners
 
@@ -390,7 +392,7 @@ del "$(hostname).csv"
 
 3.  Audit accounts on system based on list of expected users:
 
-Local Machine:
+Local Machine (Unauthorized Users):
 ``` powershell
 $expected = get-content "users.txt";
 $expected += $env:Username, "seccdc_black"
@@ -401,13 +403,34 @@ get-localuser | foreach {
 }
 ```
 
-Domain Controller:
+Domain Controller (Unuauthorized Users):
 ``` powershell
 $expected = get-content "users.txt";
 $expected += $env:Username, "seccdc_black", "krbtgt"
 get-aduser -Filter * | foreach {
 	if ($_.Name -notin $expected) {
 		echo $_.Name; add-content "unexpected.txt" $_.Name
+	}
+}
+
+Domain Controller (Unuauthorized Domain Admins):
+``` powershell
+$expected = get-content "admins.txt";
+$admins = get-adgroupmember -filter "Domain Admins" | select-object -expandproperty name;
+foreach ($admin in $admins) {
+	if ($admin -notin $expected) {
+		echo $admin; add-content "unexpected.txt" $admin
+	}
+}
+```
+
+Domain Controller (Unuauthorized Enterprise Admins):
+``` powershell
+$expected = get-content "admins.txt";
+$admins = get-adgroupmember -filter "Enterprise Admins" | select-object -expandproperty name;
+foreach ($admin in $admins) {
+	if ($admin -notin $expected) {
+		echo $admin; add-content "unexpected.txt" $admin
 	}
 }
 ```
@@ -424,7 +447,7 @@ Domain Machine:
 get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
 ```
 
-## Helpful Tools
+## Helpful Utilities
 
 **NOTE** If using powershell to curl, you will need to run the following to enable TLS:  
 `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
@@ -622,8 +645,9 @@ HKLM\SYSTEM\CurrentControlSet\Services
 ```
 
 * Scheduled Tasks
-    - Scheduled task configuration info is stored in keys in this folder. Monitor and inspect as needed.
+    - Scheduled task configuration info is stored in keys in these folders. Monitor and inspect as needed.
 ```
+HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tasks\
 HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tree\
 ```
 
@@ -702,7 +726,7 @@ reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" 
 reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
 ```
 
-The following script can be used as a guideline generate rules for you automatically:
+The following script can be used as a guideline to help generate rules for you:
 
 ``` powershell
 $members = get-adcomputer -filter * -properties IPv4Address | select-object -ExpandProperties IPv4Address;
@@ -765,7 +789,18 @@ where-object {$_}
 
 List all processes owned by SYSTEM that are listening for network connections:
 ```powershell
-Get-process -IncludeUsername | foreach {if ($_.UserName -like "*SYSTEM*") {$con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id; if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}}}
+Get-process -IncludeUsername |
+foreach {
+    if ($_.UserName -like "*SYSTEM*") {
+        $con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id;
+        if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}
+    }
+}
+```
+
+Output event logs for all Domain Admins to a csv file.
+```powershell
+get-localgroupmember Administrators | foreach {get-eventlog system -username $_.Name | export-csv “logs.csv”}
 ```
 
 # Services
