@@ -279,13 +279,24 @@ Looking at auditd alerts
 
 **NOTE: If you are in an AD environment, see [Active Directory Considerations](#active-directory-considerations)**
 
-1.  Conduct network discovery on machine and note which ports should be accessible.
-    1.  If available, run an Nmap scan on your machine.
-    2.  If unavailable, you can use `netstat -aonb`.
+1. Enumerate System/Network:
+    * Conduct network discovery on machine and note which ports should be accessible.
+        * If available, run an Nmap scan on your machine.
+        * If unavailable, you can use `netstat -aonb`.
+    * **FOR WINDOWS LEAD ONLY** Identify the machines in the domain and notify the team. [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip) can help.
 
 2. Change your account password to a known password and create an authorized_keys file for your user with the SSH key given to you.
 
-3. Create a new user on the system with a username that mimics a system account (example: "Default").
+``` powershell
+# changing your password
+net user <USERNAME> <NEW PASSWORD>
+
+# creating authorized keys file (if it doesn't exist) and setting key
+new-item $HOME/.ssh/authorized_keys -force;
+echo "<PUBKEY>" | set-content $HOME/.ssh/authorized_keys
+```
+
+3. Create a new user on the system with a username that mimics a system account (e.g. "Default").
    Set the password to a known password and create an authorized_keys file for the user with the SSH key given to you.
 
 ``` powershell
@@ -298,24 +309,23 @@ new-aduser "Default"
 add-adgroupmember -Identity "Domain Admins" -Members "Default"
 ```
 
-4. Generate account passwords for authorized users with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
+3. Generate account passwords for authorized users with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.** 
 
-5. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
+4. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
 
-6. **FOR PRIMARY DC ONLY** Audit members of `Domain Admins` and `Enterprise Admins` groups with [one-liner](#windows-one-liners).
+5. **FOR PRIMARY DC ONLY** Audit members of `Domain Admins` and `Enterprise Admins` groups with [one-liner](#windows-one-liners). These groups should have minimum membership.
 
-7. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
+6. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
 ``` powershell
-# search for keys on the entire disk
-dir C:\ -Force -Recurse -Filter "*authorized_keys"
+# search for keys in the Users directory
+dir C:\Users -Force -Recurse -Filter "authorized_keys"
 
-# check ssh config in C:\ProgramData\ssh\ and remove any entries for additional key locations
+# check ssh config in C:\ProgramData\ssh\ for additional key locations
 type C:\Program Files\OpenSSH\sshd_config
 ```
 
-8.  After network discovery completes, configure Firewall.
-    **NOTE: Rules SHOULD specify applications AND source/destination IPs.
-    Do this via the GUI after rules are made.**
+7.  After network discovery completes, configure Firewall.
+    **NOTE: Rules SHOULD specify applications AND source/destination IPs.**
 
     1.  Export current firewall policy.  
         `netsh advfirewall export "C:\rules.wfw"`
@@ -326,18 +336,20 @@ type C:\Program Files\OpenSSH\sshd_config
     3.  Flush inbound/outbound rules.  
         `Remove-NetFirewallRule`
 
-    4.  Allow RDP (C:\Windows\System32\svchost.exe 3389 TCP), SSH (C:\<PATH TO SSH DIR>\sshd.exe 22 TCP), and scored service.
+    4.  Allow RDP (C:\Windows\System32\svchost.exe 3389 TCP), SSH (C:\<PATH TO SSH DIR>\sshd.exe 22 TCP), and scored service(s) inbound.  
+        Configure additional rules as needed. See [Active Directory Considerations](#active-directory-considerations) for additional rules.
 ``` powershell
+# inbound template
 $port = <PORT>; New-NetFirewallRule -DisplayName "Inbound $port" `
 -Direction Inbound -LocalPort $port -Protocol TCP `
 -Action Allow -Program "Path\To\Executable"
-```
+-RemoteAddress <WHITELISTED IPs>
 
-    5.  Configure outbound rules as needed (DNS: 53 TCP/UDP, HTTP: 80,443 TCP).
-``` powershell
+# outbound template
 $port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" `
 -Direction Outbound -RemotePort $port -Protocol TCP `
 -Action Allow -Program "Path\To\Executable"
+-RemoteAddress <WHITELISTED IPs>
 ```
 
     6.  Re-enable firewall to block inbound and outbound.
@@ -352,26 +364,30 @@ set allprofiles logging allowedconnections enable
 set allprofiles logging droppedconnections enable
 ```
 
-9. Proceed to [System Hardening](#hardening-1)
+8. Proceed to [System Hardening](#hardening-1).
+
+9. Proceed to [Logging](#logging).
+
+10. Proceed to [Hunting](#hunting-1).
    
 ## Windows One-Liners
 
 1.  Generate CSV file with passwords and send to captain:
 ``` powershell
-$upper = ([char]'A'..[char]'Z');
-$lower = ([char]'a'..[char]'z');
-$special = ([char]'#'..[char]'&');
+$u = ([char]'A'..[char]'Z');
+$l = ([char]'a'..[char]'z');
+$s = ([char]'#'..[char]'&');
 
 function generate-password {
-	$secret = -join ($upper + $lower + $special | get-random -Count 24 | foreach {[char]$_});
+	$secret = -join ($u + $l + $s | get-random -Count 24 | foreach {[char]$_});
     return $secret;
 }
 
-get-content "users.txt" | foreach {
+gc "users.txt" | foreach {
     do {
-        $secret = generate-password;
-    } while (($secret.IndexOfAny($upper) -eq -1) -or ($secret.IndexOfAny($lower) -eq -1) -or ($secret.IndexOfAny($special) -eq -1))
-	add-content "$(hostname).csv" "$(hostname),$_,$secret"
+        $p = generate-password;
+    } while (($p.IndexOfAny($u) -eq -1) -or ($p.IndexOfAny($l) -eq -1) -or ($p.IndexOfAny($s) -eq -1))
+	ac "$(hostname).csv" "$(hostname)-SERVICE,$_,$p"
 }
 ```
 2.  Reset Passwords based on generated password CSV file:
@@ -467,9 +483,18 @@ Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
     [Microsoft Safety Scanner](https://go.microsoft.com/fwlink/?LinkId=212732) (portable)  
     [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)  
 
+4.  For environment auditing:
+    [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip)
+
 ## Hardening
 
-1.  Service Management:
+1. Confirm that there are no Password Filters (outside of scecli or rassfm) in place **before** resetting passwords. **If any exist, remove them and restart the machine.** 
+   If there are, remove them from the registry key and restart the machine.
+```powershell
+get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Packages"
+```
+
+2. Service Management:
 
     1.  Disable Print Spooler.    
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled -Force`
@@ -497,20 +522,54 @@ Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
     4.  Harden the scored service for your machine according to the
         documentation [below](#Services). **If on a DC, skip to Group Policy.**
 
-2.  Group Policy **(done via DC ONLY)**:
+3.  Group Policy **(done via DC ONLY)**:
 
-    1.  Hardening Policy
+    * Follow the guidance given by PingCastle **first** before applying the below policies.
+
+    * Hardening Policy
         1.  Firewall:
-            1.  Computer Configuration > Policies > Windows Settings > Security Settings > System Services > Windows Firewall: Automatic
-            2.  Computer Configuration > Policies > Administrative Templates > Network > Network Connections > Windows Defender > Firewall > Domain Profile > Protect all network connections: Enabled
-            3.  Computer Configuration > Windows Settings > Security Settings > Windows Firewall with Advanced Security > Firewall State
-                1.  Turn on for all profiles and block inbound/outbound traffic.
+            1.  `Computer Configuration > Policies > Windows Settings > Security Settings > System Services > Windows Firewall: Automatic`
+            2.  `Computer Configuration > Policies > Administrative Templates > Network > Network Connections > Windows Defender > Firewall > Domain Profile`
+                - Protect all network connections: Enabled
+            3.  `Computer Configuration > Windows Settings > Security Settings > Windows Firewall with Advanced Security > Firewall State`
+                -  Turn on for all profiles and block inbound/outbound traffic.
             4.  Time permitting, create explicit rules to block outbound connections from regsvr32, rundll, cmd, and powershell.
-    2.  Audit Policy
+        2. Services:
+            1. `Computer Configuration > Administrative Templates > Network > Network Provider > Hardened UNC Paths`
+                - \\*\SYSVOL - RequireMutualAuthentication=1, RequireIntegrity=1
+                - \\*\NETLOGON - RequireMutualAuthentication=1, RequireIntegrity=1
+            2. `Computer Configuration > Administrative Templates > Network > DNS Client`
+                - Enable - Turn OFF Multicast Name Resolution
+            3. `Computer Configuration > Windows Settings > Local Policies > Security Options`
+                - Microsoft network client: Digitally sign communications (always)
+                - Microsoft network server: Digitally sign communications (always)
+                - Domain member: Digitally encrypt or sign secure channel data (always)
+        3. Registry:
+            1. Prevent Plaintext Storing of Credentials:
+                - `reg add HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest /v UseLogonCredential /t REG_DWORD /d 0`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" /v Negotiate /t REG_DWORD /d 0 /f`
+            2. LSASS Hardening:
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v RunAsPPL /t REG_DWORD /d 00000001 /f`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v DisableRestrictedAdmin /t REG_DWORD /d 00000000 /f`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v DisableRestrictedAdminOutboundCreds /t REG_DWORD /d 00000001 /f`
+                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation" /v AllowProtectedCreds /t REG_DWORD /d 1 /f`
+            3. Disable IPv6:
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\services\tcpip6\parameters" /v DisabledComponents /t REG_DWORD /d 0xFF /f`
+            4. DLL Hijacking:
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v CWDIllegalInDllSearch /t REG_DWORD /d 0x2 /f`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v SafeDLLSearchMode /t REG_DWORD /d 1 /f`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v ProtectionMode /t REG_DWORD /d 1 /f`
+            5. RPC Hardening:
+                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Rpc" /v RestrictRemoteClients /t REG_DWORD /d 1 /f`
+            6. SMB Hardening:
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v EnablePlainTextPassword /t REG_DWORD /d 0 /f`
+                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LmCompatibilityLevel /t REG_DWORD /d 5 /f`
+                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation" /v AllowInsecureGuestAuth /t REG_DWORD /d 0 /f`
+    * Audit Policy
         1.  Powershell Block/Module Logging: `Administrative Templates > Windows Components > Windows Powershell`
-    3.  After policy has been configured, run `gpupdate /force` to replicate the policy to other machines.
+    * After policy has been configured, run `gpupdate /force` to replicate the policy to other machines.
    
-3.  ACLs:
+4.  ACLs:
    1.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
 ```
 Examples:
@@ -546,7 +605,7 @@ HKLM\SYSTEM\CurrentControlSet\Services
 
     1.  You can filter down events to Sysmon*, Powershell*, and Security.
 
-## Persistence
+## Hunting
 
 1.  Run a system scan with one of the antivirus solutions listed in [helpful tools](#helpful-tools).
 
@@ -643,6 +702,10 @@ HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
 ```
 HKLM\SYSTEM\CurrentControlSet\Services
 ```
+    - Services can have an attribute set that makes them hidden from view. You can list all hidden services with:
+```
+Compare-Object -ReferenceObject (Get-Service | Select-Object -ExpandProperty Name | % { $_ -replace "_[0-9a-f]{2,8}$" } ) -DifferenceObject (gci -path hklm:\system\currentcontrolset\services | % { $_.Name -Replace "HKEY_LOCAL_MACHINE\\","HKLM:\" } | ? { Get-ItemProperty -Path "$_" -name objectname -erroraction 'ignore' } | % { $_.substring(40) }) -PassThru | ?{$_.sideIndicator -eq "=>"}
+```
 
 * Scheduled Tasks
     - Scheduled task configuration info is stored in keys in these folders. Monitor and inspect as needed.
@@ -699,12 +762,22 @@ Domain Controller:
     49152,49153 TCP: RPC*
     3268,3269 TCP: Global Catalog LDAP & LDAPS
 - Outbound:
+    123 TCP: NTP
+    135 TCP: NetBIOS
+    138,139 TCP/UDP: File Replication
     445 TCP: SMB
     49152,49153 TCP: RPC*
 
+
 Domain Member:
 - Inbound:
+    123 TCP: NTP
+    135 TCP: NetBIOS
+    138,139 TCP/UDP: File Replication
+    389,636 TCP: LDAP & LDAPS
     445 TCP: SMB
+    464 TCP: Kerberos password change
+    49152,49153: RPC*
 - Outbound:
     53 UDP: DNS
     123 TCP: NTP
@@ -726,10 +799,11 @@ reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" 
 reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
 ```
 
-The following script can be used as a guideline to help generate rules for you:
+The following script can be used as a guideline to help generate rules for you on a DC:
 
 ``` powershell
-$members = get-adcomputer -filter * -properties IPv4Address | select-object -ExpandProperties IPv4Address;
+# grabs all domain member ips
+$members = get-adcomputer -filter * -properties IPv4Address | select-object -ExpandProperty IPv4Address;
 
 $tcpports = 53,88,123,135,138,139,389,636,445,464,3268,3269,49152,49153;
 foreach ($p in $tcpports) {
@@ -750,7 +824,6 @@ foreach ($p in $udpports) {
     -LocalPort $p -Protocol UDP `
     -Action Allow -Direction Outbound -RemoteAddress $members;
 }
-
 ```
 
 ### Hardening
@@ -766,14 +839,6 @@ gpupdate /force
 ```
 
 ## Powershell
-
-### Basic Syntax
-
-for
-
-select-object
-
-where-object {$_}
 
 ### Useful Cmdlets
 
@@ -801,6 +866,11 @@ foreach {
 Output event logs for all Domain Admins to a csv file.
 ```powershell
 get-localgroupmember Administrators | foreach {get-eventlog system -username $_.Name | export-csv “logs.csv”}
+```
+
+List all domain members and their IPs.
+```powershell
+$members = get-adcomputer -filter * -properties IPv4Address;
 ```
 
 # Services
