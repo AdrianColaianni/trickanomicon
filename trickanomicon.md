@@ -110,12 +110,14 @@ PermitEmptyPasswords no
 
 ## Hunting
 
-1. List all files with creation date, most recent first: `find /usr /bin /etc \` \
+1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
+2. List all files with creation date, most recent first: `find /usr /bin /etc \` \
     `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
 
-2. List all files created after set date, most recent first: \
+3. List all files created after set date, most recent first: \
     `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
     `stat -c "%W %n" {} + | sort -rn > files`
+
 
 ## Duncan's Magic {#dmagic}
 
