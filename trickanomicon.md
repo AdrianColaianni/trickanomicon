@@ -28,18 +28,19 @@
 ## 30 Minute Plan
 
 1. [NMAP Scan Machine](#nmap) in background
-2. Rotate all ssh keys
+2. [Backup files](#backups)
+3. Rotate all ssh keys
     1. Populate the machines with the ssh key from lead linux captain
     2. Deploy with `ssh-copy-id -i <file> <user@host>`
     3. Ensure there is only one entry (one line) in `~/.ssh/authorized_keys`. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
     4. Remove all other authorized keys files with `find / -name authorized_keys`
 
-3. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
-4. Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
+4. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
+5. Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
     1. **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
-5. Find listening services with `ss -tunlp` and investigate strange ones
+6. Find listening services with `ss -tunlp` and investigate strange ones
 
 ## Monitoring
 
@@ -57,6 +58,13 @@
     3. Watch logs with `journalctl -kf –grep="OUT=.*"`
 
 7. Watch dbus with `dbus -w`
+
+## Backups
+
+1. Look for csv's and import scripts in home dir
+2. Backups data directory with `tar czf var-lib.tar.gz /var/lib &`
+3. Backups conf directory with `tar czf etc.tar.gz /etc &`
+4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine);w
 
 ## System Utilities
 
