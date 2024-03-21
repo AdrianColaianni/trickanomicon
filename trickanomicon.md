@@ -1,25 +1,19 @@
 % Trickanomicon
 % Clemson CCDC 2024
 
-# Competition Information
+# Initial Action Plan
 
-## Pre-Competition Checklist/General Knowledge Requirements
+1.  Captain will facilitate a ping sweep scan to see what's on the network and assign machines.
 
-1. NMAP installed on your local machine
+2.  Nmap scan the machine you are assigned and give results in the appropriate channel.
 
-2. Minimal understanding of bash
+    1. Run an nmap scan on all ports on your machine: `nmap -T5 -Pn -p- <IP ADDRESS>`
 
-## High-Level First 30 Minutes Plan
+    2. Run a service scan with all ports that return: `nmap -T5 -sV -p <PORT LIST> <IP ADDRESS>`
 
-1. Lead captain will do a ping sweep scan to see what's on the network + an rdp port scan to figure out which machines are windows
-2. Machines get assigned to people (and this will be written down on a whiteboard that we can all see)
-3. Each person will nmap scan the machine they are assigned and give results in the appropriate channel
-    1. [Quick scan and save to a text file]{#nmap} \
-        `a(){nmap -p- -T4 -Av -oN "nmap-$1.txt" $1};a <ip>`
+    3. For Linux, get your machine's OS by copying the output from: `cat /etc/os-release`
 
-4. Each person will log into their machine and do user management stuff
-5. Each person will do system hardening + firewalls (or let firewall guru do their thing) for their machine
-6. Each person will monitor their machine for activity from there on out unless they're helping with an inject
+3.  Proceed to Linux or Windows section based on assigned machine.
 
 # Linux
 
@@ -212,143 +206,169 @@ Looking at auditd alerts
 
 **Do not touch the** `seccdc_black` **account.**
 
-## Security Checklist
+## Action Plan
 
-**NOTE: If you are in an AD environment, see [Active Directory Considerations](#active-directory-considerations)**
+### Windows Lead Only
 
-1. Enumerate System/Network:
-    * Conduct network discovery on machine and note which ports should be accessible.
-        * If available, run an Nmap scan on your machine.
-        * If unavailable, you can use `netstat -aonb`.
-    * **FOR WINDOWS LEAD ONLY** Identify the machines in the domain and notify the team. [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip) can help.
+1. Enumerate domain and notify captain with `get-adcomputer -filter *`.
 
-2. Change your account password to a known password and create an authorized_keys file for your user with the SSH key given to you.
-
-``` powershell
+2. Change your password **to the password provided to you**.
+```powershell
 # changing your password
 net user <USERNAME> <NEW PASSWORD>
-
-# creating authorized keys file (if it doesn't exist) and setting key
-new-item $HOME/.ssh/authorized_keys -force;
-echo "<PUBKEY>" | set-content $HOME/.ssh/authorized_keys
 ```
 
-3. Create a new user on the system with a username that mimics a system account (e.g. "Default").
-   Set the password to a known password and create an authorized_keys file for the user with the SSH key given to you.
-
-``` powershell
-# creating a local user named Default and adding them to Administrators
-new-localuser "Default"
-add-localgroupmember -group "Administrators" -Member "Default"
-
-# creating a domain user named Default to the Domain Administrators group
-new-aduser "Default"
-add-adgroupmember -Identity "Domain Admins" -Members "Default"
+3. Create a new domain user named Grimace with **the password provided to you**.
+```powershell
+# creating user and adding to group
+new-aduser "Grimace" -Enabled $true -AccountPassword (Read-Host -AsSecureString) 
+add-adgroupmember -Identity "Domain Admins" -Members "Grimace"
 ```
 
-3. Generate account passwords for authorized users with [one-liner](#windows-one-liners) and store off the machine. **Wait to reset passwords until directed by captain.**
+4. Generate passwords for domain users with [scripts](#windows-scripts) and backup off the machine. **Wait to reset passwords until directed by captain.** 
 
-4. Disable unauthorized user accounts **except your own, seccdc_black, and any needed service accounts** with [one-liner](#windows-one-liners).
+5. Audit members of `Domain Admins` and `Enterprise Admins` groups with [scripts](#windows-scripts).
 
-5. **FOR PRIMARY DC ONLY** Audit members of `Domain Admins` and `Enterprise Admins` groups with [one-liner](#windows-one-liners). These groups should have minimum membership.
+6. Run PingCastle to do a sweep of domain vulnerabilities. **Come back to this later.**
 
-6. Find and remove authorized SSH keys. Keys are typically stored in `<USERDIR>/.ssh/authorized_keys or C:\ProgramData\ssh\administrators_authorized_keys`.
-``` powershell
+### Everyone
+1. Create an authorized_keys file for Grimace and your user **with the SSH key given to you.**
+
+```powershell
+# creating authorized keys file and setting key
+new-item $HOME\.ssh\authorized_keys -force;
+echo "<PUBKEY>" | set-content $HOME\.ssh\authorized_keys
+
+new-item C:\Users\Grimace\.ssh\authorized_keys -force;
+echo "<PUBKEY>" | set-content C:\Users\Grimace\.ssh\authorized_keys
+```
+
+2. Audit local users (if any) with [scripts](#windows-scripts).
+
+3. Key Management
+    1. Find and remove unauthorized SSH keys. 
+```powershell
 # search for keys in the Users directory
 dir C:\Users -Force -Recurse -Filter "authorized_keys"
+```
+    2. Remove all `Match Group` sections in `C:\ProgramData\ssh\sshd_config` and save.
 
-# check ssh config in C:\ProgramData\ssh\ for additional key locations
-type C:\Program Files\OpenSSH\sshd_config
+    3. Restart the sshd service.
+```powershell
+restart-service "sshd" -force
 ```
 
-7.  After network discovery completes, configure Firewall.
-    **NOTE: Rules SHOULD specify applications AND source/destination IPs.**
+4. Backup service directories and store off the machine.
+```powershell
+mkdir C:\temp
 
-    1.  Export current firewall policy.
-        `netsh advfirewall export "C:\rules.wfw"`
+# all servers
+cp C:\ProgramData C:\temp\ -recurse -force
 
-    2.  Disable firewall.
-        `netsh advfirewall set allprofiles state off`
+# for servers running iis
+cp C:\inetpub C:\temp\ -recurse -force
 
-    3.  Flush inbound/outbound rules.
-        `Remove-NetFirewallRule`
+compress-archive C:\temp\* -destinationpath backup.zip
+```
 
-    4.  Allow RDP (C:\Windows\System32\svchost.exe 3389 TCP), SSH (C:\<PATH TO SSH DIR>\sshd.exe 22 TCP), and scored service(s) inbound.
-        Configure additional rules as needed. See [Active Directory Considerations](#active-directory-considerations) for additional rules.
-``` powershell
-# inbound template
+5. After network discovery completes, configure Firewall.
+
+    1.  Export current firewall policy.  
+```powershell
+netsh advfirewall export "C:\rules.wfw"
+```
+
+    2.  Disable firewall.  
+```powershell
+netsh advfirewall set allprofiles state off
+```
+
+    3.  Flush unneeded inbound/outbound rules.  
+```powershell
+# use this on a domain controller
+$rules = get-netfirewallrule | ? {
+    $_.DisplayGroup -notmatch `
+    "Replication|^DNS|Domain Services|Key Distribution"
+}
+```
+```powershell
+# use this on a domain member (note the spacing)
+$rules = get-netfirewallrule | ? {
+    $_.DisplayName -notmatch `
+    " +DNS|Group Policy"
+}
+```
+```powershell
+$rules | remove-netfirewallrule
+```
+
+    4.  Allow RDP inbound.
+```powershell
+New-NetFirewallRule -DisplayName "Inbound 3389" `
+-Direction Inbound -LocalPort 3389 -Protocol TCP `
+-Action Allow -Program "C:\Windows\System32\svchost.exe"
+```
+
+    5. Allow SSH inbound. Get the ssh path with `where.exe sshd.exe`
+```powershell
+New-NetFirewallRule -DisplayName "Inbound 22" `
+-Direction Inbound -LocalPort 22 -Protocol TCP `
+-Action Allow -Program "C:\<PATH TO SSH>\sshd.exe"
+```
+
+    6. Allow scored services (if any) inbound.
+```powershell
 $port = <PORT>; New-NetFirewallRule -DisplayName "Inbound $port" `
 -Direction Inbound -LocalPort $port -Protocol TCP `
--Action Allow -Program "Path\To\Executable"
--RemoteAddress <WHITELISTED IPs>
-
-# outbound template
-$port = <PORT>; New-NetFirewallRule -DisplayName "Outbound $port" `
--Direction Outbound -RemotePort $port -Protocol TCP `
--Action Allow -Program "Path\To\Executable"
--RemoteAddress <WHITELISTED IPs>
+-Action Allow
 ```
 
-    6.  Re-enable firewall to block inbound and outbound.
-``` powershell
+    7.  Re-enable firewall to block inbound and outbound.
+```powershell
 netsh advfirewall set allprofiles firewallpolicy blockinbound,blockoutbound
 netsh advfirewall set allprofiles state on
 ```
 
-    7. Enable firewall logging for all profiles:
-``` powershell
+    8. Enable firewall logging for all profiles (logs stored at %System32%\LogFiles\Firewall):
+```powershell
 set allprofiles logging allowedconnections enable
 set allprofiles logging droppedconnections enable
 ```
 
-8. Proceed to [System Hardening](#hardening-1).
+5. Proceed to [System Hardening](#hardening-1).
 
-9. Proceed to [Logging](#logging).
+6. Proceed to [Logging](#logging).
 
-10. Proceed to [Hunting](#hunting-1).
+7. Proceed to [Hunting](#hunting-1).
 
-## Windows One-Liners
+8. Proceed to [Monitoring](#monitoring-1).
+   
+## Windows Scripts
 
-1.  Generate CSV file with passwords and send to captain:
-``` powershell
-$u = ([char]'A'..[char]'Z');
-$l = ([char]'a'..[char]'z');
-$s = ([char]'#'..[char]'&');
-
-function generate-password {
-	$secret = -join ($u + $l + $s | get-random -Count 24 | foreach {[char]$_});
-    return $secret;
-}
+1.  Generate CSV file with passwords:
+```powershell
+$l = ([char]'a'..[char]'z') + ([char]'A'..[char]'Z');
 
 gc "users.txt" | foreach {
-    do {
-        $p = generate-password;
-    } while (($p.IndexOfAny($u) -eq -1) -or ($p.IndexOfAny($l) -eq -1) -or ($p.IndexOfAny($s) -eq -1))
-	ac "$(hostname).csv" "$(hostname)-SERVICE,$_,$p"
+    $p = -join ($l | get-random -Count 20 | foreach {[char]$_}) + "7!";
+    ac "$(hostname).csv" "$(hostname)-SERVICE,$_,$p"
 }
 ```
-2.  Reset Passwords based on generated password CSV file:
 
+2.  Reset Passwords based on generated password CSV file:
 Local Machine:
-``` powershell
+```powershell
 import-csv "$(hostname).csv" -Header "host","user","pass" |
 foreach {net user $_.user $_.pass};
 del "$(hostname).csv"
 ```
 
-Domain Controller:
-``` powershell
-import-csv "$(hostname).csv" -Header "host","user","pass" |
-foreach {net user $_.user $_.pass /domain};
-del "$(hostname).csv"
-```
-
 3.  Audit accounts on system based on list of expected users:
 
-Local Machine (Unauthorized Users):
-``` powershell
+Unauthorized Users:
+```powershell
 $expected = get-content "users.txt";
-$expected += $env:Username, "seccdc_black"
+$expected += $env:Username, "seccdc_black", "Grimace"
 get-localuser | foreach {
 	if ($_.Name -notin $expected) {
 		echo $_.Name; add-content "unexpected.txt" $_.Name
@@ -356,20 +376,10 @@ get-localuser | foreach {
 }
 ```
 
-Domain Controller (Unuauthorized Users):
-``` powershell
-$expected = get-content "users.txt";
-$expected += $env:Username, "seccdc_black", "krbtgt"
-get-aduser -Filter * | foreach {
-	if ($_.Name -notin $expected) {
-		echo $_.Name; add-content "unexpected.txt" $_.Name
-	}
-}
-
 Domain Controller (Unuauthorized Domain Admins):
-``` powershell
+```powershell
 $expected = get-content "admins.txt";
-$admins = get-adgroupmember -filter "Domain Admins" | select-object -expandproperty name;
+$admins = get-adgroupmember "Domain Admins" | select-object -expandproperty name;
 foreach ($admin in $admins) {
 	if ($admin -notin $expected) {
 		echo $admin; add-content "unexpected.txt" $admin
@@ -378,9 +388,9 @@ foreach ($admin in $admins) {
 ```
 
 Domain Controller (Unuauthorized Enterprise Admins):
-``` powershell
+```powershell
 $expected = get-content "admins.txt";
-$admins = get-adgroupmember -filter "Enterprise Admins" | select-object -expandproperty name;
+$admins = get-adgroupmember "Enterprise Admins" | select-object -expandproperty name;
 foreach ($admin in $admins) {
 	if ($admin -notin $expected) {
 		echo $admin; add-content "unexpected.txt" $admin
@@ -389,64 +399,37 @@ foreach ($admin in $admins) {
 ```
 
 4.  Disable unauthorized accounts:
-
-Local Machine:
-``` powershell
+```powershell
 get-content "unexpected.txt" | foreach {net user $_ /active:no}
 ```
 
-Domain Machine:
-``` powershell
-get-content "unexpected.txt" | foreach {net user $_ /active:no /domain}
-```
-
-## Helpful Utilities
-
-**NOTE** If using powershell to curl, you will need to run the following to enable TLS:
-`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
-
-1.  For package management (Scoop):
-``` powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-```
-
-2.  For system logging and monitoring:
-    [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip)
-    [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml)
-    [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)
-
-3.  For antivirus scanning:
-    [Microsoft Safety Scanner](https://go.microsoft.com/fwlink/?LinkId=212732) (portable)
-    [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)
-
-4.  For environment auditing:
-    [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip)
-
 ## Hardening
 
-1. Confirm that there are no Password Filters (outside of scecli or rassfm) in place **before** resetting passwords. **If any exist, remove them and restart the machine.**
-   If there are, remove them from the registry key and restart the machine.
+1. Confirm that there are no Password Filters or Security Packages in place. **If any exist, remove them and restart the machine.** 
 ```powershell
+# password filters (should only show scecli and rassfm)
 get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Packages"
+
+# security packages (there should be none)
+get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Security Packages"
 ```
 
 2. Service Management:
 
-    1.  Disable Print Spooler.
+    1.  Disable Print Spooler.    
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled -Force`
 
-    2.  Disable WinRM.
+    2.  Disable WinRM.  
         `Set-Service -Name "WinRM" -Status stopped -StartupType disabled -Force`
 
     3.  Configure SMB:
 
-        1.  If SMB is unneeded (i.e. not in an AD setting), disable it entirely.
+        1.  If SMB is unneeded (i.e. not in an AD setting), disable it entirely.  
             `Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled`
 
         2.  If SMB is needed, do the following:
 
-            1. Disable SMBv1.
+            1. Disable SMBv1.  
                 `Set-SmbServerConfiguration -EnableSMB1Protocol $False -Force`
 
             2. Disable SMB Compression:
@@ -456,8 +439,7 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Pac
                 Remove any unrecognized shares with `Remove-SmbShare -Name <SHARENAME>`
                 Administrative shares (ADMIN\$, IPC\$, C\$, NETLOGON, SYSVOL) **should not be removed.**
 
-    4.  Harden the scored service for your machine according to the
-        documentation [below](#Services). **If on a DC, skip to Group Policy.**
+    4.  Harden the scored service for your machine according to the documentation [below](#Services). **If on a DC, skip to Group Policy.**
 
 3.  Group Policy **(done via DC ONLY)**:
 
@@ -465,12 +447,8 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Pac
 
     * Hardening Policy
         1.  Firewall:
-            1.  `Computer Configuration > Policies > Windows Settings > Security Settings > System Services > Windows Firewall: Automatic`
-            2.  `Computer Configuration > Policies > Administrative Templates > Network > Network Connections > Windows Defender > Firewall > Domain Profile`
-                - Protect all network connections: Enabled
-            3.  `Computer Configuration > Windows Settings > Security Settings > Windows Firewall with Advanced Security > Firewall State`
+            1.  `Computer Configuration > Windows Settings > Security Settings > Windows Firewall with Advanced Security > Firewall State`
                 -  Turn on for all profiles and block inbound/outbound traffic.
-            4.  Time permitting, create explicit rules to block outbound connections from regsvr32, rundll, cmd, and powershell.
         2. Services:
             1. `Computer Configuration > Administrative Templates > Network > Network Provider > Hardened UNC Paths`
                 - \\*\SYSVOL - RequireMutualAuthentication=1, RequireIntegrity=1
@@ -481,56 +459,24 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Pac
                 - Microsoft network client: Digitally sign communications (always)
                 - Microsoft network server: Digitally sign communications (always)
                 - Domain member: Digitally encrypt or sign secure channel data (always)
+            4. `Computer Configuration > Admininstrative Templates > System > Remote Procedure Call` 
+                - Restrictions for Unauthenticated RPC Clients: Authenticated
         3. Registry:
-            1. Prevent Plaintext Storing of Credentials:
+            1. Prevent Plaintext Storage of Credentials:
                 - `reg add HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest /v UseLogonCredential /t REG_DWORD /d 0`
                 - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest" /v Negotiate /t REG_DWORD /d 0 /f`
             2. LSASS Hardening:
                 - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v RunAsPPL /t REG_DWORD /d 00000001 /f`
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v DisableRestrictedAdmin /t REG_DWORD /d 00000000 /f`
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v DisableRestrictedAdminOutboundCreds /t REG_DWORD /d 00000001 /f`
-                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation" /v AllowProtectedCreds /t REG_DWORD /d 1 /f`
-            3. Disable IPv6:
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\services\tcpip6\parameters" /v DisabledComponents /t REG_DWORD /d 0xFF /f`
-            4. DLL Hijacking:
+            3. Remote DLL Hijacking Protections:
                 - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v CWDIllegalInDllSearch /t REG_DWORD /d 0x2 /f`
                 - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v SafeDLLSearchMode /t REG_DWORD /d 1 /f`
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v ProtectionMode /t REG_DWORD /d 1 /f`
-            5. RPC Hardening:
-                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Rpc" /v RestrictRemoteClients /t REG_DWORD /d 1 /f`
-            6. SMB Hardening:
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\Services\LanmanWorkstation\Parameters" /v EnablePlainTextPassword /t REG_DWORD /d 0 /f`
-                - `reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v LmCompatibilityLevel /t REG_DWORD /d 5 /f`
-                - `reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation" /v AllowInsecureGuestAuth /t REG_DWORD /d 0 /f`
     * Audit Policy
         1.  Powershell Block/Module Logging: `Administrative Templates > Windows Components > Windows Powershell`
-    * After policy has been configured, run `gpupdate /force` to replicate the policy to other machines.
-
-4.  ACLs:
-   1.  AccessEnum can be used to search for misconfigured ACLs. Check sensitive registry keys/directories.
-```
-Examples:
-C:\Windows\System32
-HKLM\SYSTEM\CurrentControlSet\Services
-```
-
-## Monitoring
-
-1.  View incoming network connections with `netstat -of`. For a GUI view, use TCPView.
-
-2.  View running processes in the details pane of Task Manager, via Process Explorer, or with `tasklist`. Kill a process with `taskkill /f /pid <PID>`.
-    1.  Find information about a running process with `wmic process where '(processid=<PID>)' get 'processid,parentprocessid,executablepath'`.
-
-3.  View all shares with `net share` and connected Named Pipes / Shares with `net use`.
-
-4.  Viewing logons:
-    1.  Can view logged on user applications with `get-process -includeusername | ? {$_.ProcessName -like "rdpclip" -or $_.ProcessName -like "sshd"}`
-
-5.  View all connected RDP sessions with `qwinsta` and kill sessions with `rwinsta <SESSION ID>`.
-
+    * After policy has been configured and enforced, run `gpupdate /force` on each machine in the domin.
+   
 ## Logging
 
-1.  For more insight into system activity, configure Sysmon with [this config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
+1.  Configure Sysmon with [our config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
 
     1.  To install Sysmon, run `sysmon -i <PATH TO CONFIG FILE>`.
 
@@ -538,277 +484,152 @@ HKLM\SYSTEM\CurrentControlSet\Services
 
     3.  If you want to update your config file, run `sysmon -c <PATH TO NEW CONFIG>`.
 
-2.  You can view system events locally with the Event Viewer or Nirsoft's [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip).
-
-    1.  You can filter down events to Sysmon*, Powershell*, and Security.
-
 ## Hunting
 
-1.  Run a system scan with one of the antivirus solutions listed in [helpful tools](#helpful-tools).
+1. Run a system scan with Malwarebytes.
 
-2.  Scheduled Tasks, Services, and registry keys should be checked for persistence. The Autoruns utility can be used to find potential persistence mechanisms.
+2. Check for any connected user sessions and terminate unknown ones.
+    1.  View all connected RDP sessions with `qwinsta` and kill sessions with `rwinsta <SESSION ID>`.
+
+    2.  View SSH sessions `get-process -includeusername | ? {$_.ProcessName -like "sshd"}`. Kill a process with `taskkill /f /pid <PID>`. **The SYSTEM sshd process should not be killed.** 
+    
+3. Use BLUESPAWN (and optionally DEEPGLASS) to audit the system for backdoors.
+    1. `BLUESPAWN.exe -h` will do a one-pass scan for MITRE ATT&CK indicators.
+
+    2. `BLUESPAWN.exe -m` will monitor for indicators and can actively remediate them.
+    
+    3. `DEEPGLASS.exe` will scan the file system and registry for suspicious files.
+
+4. Startup items and registry run keys should be checked with Autoruns.
+
+5. Time permitting, check the common backdoors listed in detail below:
 
 * Run Keys & Startup Folder
+    - Run every time a user logs into the machine.
 ```
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx\
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServices\
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServicesOnce\
-\HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\
-
-\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\
-\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\
-\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServices\
-\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunServicesOnce\
-\HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\
-
-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
-HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
-
-HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
-HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
+HKLM:\Software\Microsoft\Windows\CurrentVersion\Run\
+HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce\
+HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnceEx\
+HKLM:\Software\Microsoft\Windows\CurrentVersion\RunServices\
+HKLM:\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce\
+HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
+```
+```
+HKCU:\Software\Microsoft\Windows\CurrentVersion\Run\
+HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce\
+HKCU:\Software\Microsoft\Windows\CurrentVersion\RunServices\
+HKCU:\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce\
+HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
+```
+```
+HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\ 
+HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
+HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
+HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
 ```
 
 * AppCert DLLs
     - Loaded into any process that calls CreateProcess, CreateProcessAsUser, CreateProcessWithLoginW, CreateProcessWithTokenW, WinExec
 ```
-HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager
+HKLM:\System\CurrentControlSet\Control\Session Manager
 ```
 
 * AppInit DLLs
     - Loaded by every process that uses user32.dll (almost all). Disabled in Windows 8+ if secure boot is enabled.
 ```
-HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Windows
-HKEY_LOCAL_MACHINE\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows
+HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Windows
+HKLM:\Software\Wow6432Node\Microsoft\Windows NT\CurrentVersion\Windows
 ```
 
 * Component Object Model (COM) Hijacking
     - User objects in this key will override machine objects in HKLM.
 ```
-HKEY_CURRENT_USER\Software\Classes\CLSID\
+HKCU:\Software\Classes\CLSID\
 ```
 
 * Netsh Helper DLLs
     - Executes helper DLLs when executed which are registered at this key.
 ```
-HKLM\SOFTWARE\Microsoft\Netsh
+HKLM:\SOFTWARE\Microsoft\Netsh
 ```
 
 * Port Monitors
     - Should only contain Appmon, Local Port, Microsoft Shared Fax Monitor, Standard TCP/IP Port, USB Monitor, WSD Port. Can be used to load arbitrary DLLs at startup, will run as SYSTEM.
 ```
-HKLM\SYSTEM\CurrentControlSet\Control\Print\Monitors
+HKLM:\SYSTEM\CurrentControlSet\Control\Print\Monitors
 ```
 
 * Screensavers
-     - More than just bubbles and ribbons. Check SCRNSAVE.exe, make sure ScreenSaveIsSecure == 1.
+    - More than just bubbles and ribbons. Check SCRNSAVE.exe, make sure ScreenSaveIsSecure == 1.
 ```
-HKCU\Control Panel\Desktop\
+HKCU:\Control Panel\Desktop\
 ```
 
 * Security Support Provider (SSP) DLLs
     - Loaded into LSA at startup or when AddSecurityPackage is called. Let's red team see plaintext creds.
 ```
-HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages
-HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\Security Packages
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Security Packages
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\Security Packages
 ```
 On Windows 8.1 & Server 2012R2, change AuditLevel to 8 to to require SSP DLLs to be signed.
 ```
-HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe
+HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\LSASS.exe
 ```
 
 * Password Filters
     - Used to harvest creds anytime a password is changed. Should only contain sceli & rassfm as notification Packages.
 ```
-HKLM\SYSTEM\CurrentControlSet\Control\Lsa\Notification
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Notification 
 ```
 
 * Winlogon Helper DLL
     - Handles actions at logon/logoff.
 ```
-HKLM\Software[Wow6432Node]Microsoft\Windows NT\CurrentVersion\Winlogon\
-HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
+HKLM:\Software[Wow6432Node]Microsoft\Windows NT\CurrentVersion\Winlogon\
+HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
 ...\\Winlogon\Notify
 ...\\Winlogon\Userinit
 ...\\Winlogon\Shell
 ```
 
 * Services
-    - Service configuration info is stored in keys in this folder. Monitor and inspect as needed.
+    - Service configuration info is stored in keys in this folder. 
 ```
-HKLM\SYSTEM\CurrentControlSet\Services
+HKLM:\SYSTEM\CurrentControlSet\Services
 ```
-    - Services can have an attribute set that makes them hidden from view. You can list all hidden services with:
+    - **Services can have an attribute set that makes them hidden. Check for hidden services with:**
 ```
 Compare-Object -ReferenceObject (Get-Service | Select-Object -ExpandProperty Name | % { $_ -replace "_[0-9a-f]{2,8}$" } ) -DifferenceObject (gci -path hklm:\system\currentcontrolset\services | % { $_.Name -Replace "HKEY_LOCAL_MACHINE\\","HKLM:\" } | ? { Get-ItemProperty -Path "$_" -name objectname -erroraction 'ignore' } | % { $_.substring(40) }) -PassThru | ?{$_.sideIndicator -eq "=>"}
 ```
 
 * Scheduled Tasks
-    - Scheduled task configuration info is stored in keys in these folders. Monitor and inspect as needed.
+    - Scheduled task configuration info is stored in keys in these folders.
 ```
-HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tasks\
-HKLM\Software\Microsoft\Windows NT\CurrentVersion\Schedule\Taskcache\Tree\
+HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tasks\
+HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree
+```
+    - **Tasks can be hidden by deleting the Security Descriptor. Check for hidden tasks with:**
+```
+compare-object -referenceobject (get-scheduledtask | select-object -expandproperty taskname | sort-object) -differenceobject (gci -path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\" -recurse | get-itemproperty | ? {$_.Id -ne $null} | select-object -expandproperty PSPath | split-path -leaf | sort-object) -includeequal
 ```
 
 ### Common Backdoors
 * Sticky keys
 * Web shells
 * Malicious accounts
-* Golden ticket
+* Golden ticket 
 * Keylogger
-* Packages
 
-### Services
-* Look for new services
-* Query services not on services.msc
-* Stop remote management services
+## Monitoring
 
-### Accounts, Groups, Permissions
-* Accounts in admin groups
-* New accounts
-* Changing password to existing accounts
+1.  View incoming network connections with `netstat -of` or the firewall logs. For a GUI view, use TCPView.
 
-### Event Logs
-* Sysmon
+2.  View running processes in the details pane of Task Manager, via Process Explorer, or with `tasklist`.
+    1.  Find information about a running process with `wmic process where '(processid=<PID>)' get 'processid,parentprocessid,executablepath'`.
 
-### Network Connections
-* Firewall log in %System32%\LogFiles\Firewall
-* Check that firewall config hasn't changed
-* netstat -fo to listen for new connections
+3.  View all shares with `net share` and connected Named Pipes / Shares with `net use`.
 
-3. You can scan the system for unsigned dlls with `listdlls -u`
-
-## Active Directory Considerations
-
-### Firewall
-
-The below ports are needed for Active Directory to operate:
-
-```
-Domain Controller:
-- Inbound:
-    53 UDP: DNS
-    88 TCP/UDP: Kerberos
-    123 TCP: NTP
-    135 TCP: NetBIOS
-    138,139 TCP/UDP: File Replication
-    389,636 TCP: LDAP & LDAPS
-    445 TCP: SMB
-    464 TCP: Kerberos password change
-    49152,49153 TCP: RPC*
-    3268,3269 TCP: Global Catalog LDAP & LDAPS
-- Outbound:
-    123 TCP: NTP
-    135 TCP: NetBIOS
-    138,139 TCP/UDP: File Replication
-    445 TCP: SMB
-    49152,49153 TCP: RPC*
-
-
-Domain Member:
-- Inbound:
-    123 TCP: NTP
-    135 TCP: NetBIOS
-    138,139 TCP/UDP: File Replication
-    389,636 TCP: LDAP & LDAPS
-    445 TCP: SMB
-    464 TCP: Kerberos password change
-    49152,49153: RPC*
-- Outbound:
-    53 UDP: DNS
-    123 TCP: NTP
-    135 TCP: NetBIOS
-    138,139 TCP/UDP: File Replication
-    389,636 TCP: LDAP & LDAPS
-    445 TCP: SMB
-    49152,49153 TCP: RPC*
-
-*This is assuming you have defined 49152 and 49153 as fixed RPC ports (see below).
-```
-
-RPC typically uses a large range of ports to establish ephemeral connections. You can restrict this by using the following one-liners:
-
-``` powershell
-# sets RPC to 49152 and 49153; this requires a server restart to take effect
-reg add HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters /v "TCP/IP Port" /t REG_DWORD /d 49152
-
-reg add HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters /v "DCTcpipPort" /t REG_DWORD /d 49153
-```
-
-The following script can be used as a guideline to help generate rules for you on a DC:
-
-``` powershell
-# grabs all domain member ips
-$members = get-adcomputer -filter * -properties IPv4Address | select-object -ExpandProperty IPv4Address;
-
-$tcpports = 53,88,123,135,138,139,389,636,445,464,3268,3269,49152,49153;
-foreach ($p in $tcpports) {
-    New-NetFirewallRule -DisplayName "DC $p TCP IN" `
-    -LocalPort $p -Protocol TCP `
-    -Action Allow -Direction Inbound -RemoteAddress $members;
-    New-NetFirewallRule -DisplayName "DC $p TCP OUT" `
-    -LocalPort $p -Protocol TCP `
-    -Action Allow -Direction Outbound -RemoteAddress $members;
-}
-
-$udpports = 53,88,139,139;
-foreach ($p in $udpports) {
-    New-NetFirewallRule -DisplayName "DC $p UDP IN" `
-    -LocalPort $p -Protocol UDP `
-    -Action Allow -Direction Inbound -RemoteAddress $members;
-    New-NetFirewallRule -DisplayName "DC $p UDP OUT" `
-    -LocalPort $p -Protocol UDP `
-    -Action Allow -Direction Outbound -RemoteAddress $members;
-}
-```
-
-### Hardening
-
-1.  The krbtgt password should be reset with this [password reset script](https://github.com/microsoft/New-KrbtgtKeys.ps1).
-
-2.  Audit domain groups for odd membership. Machine accounts can be exploited.
-
-3.  You can force a reset of domain group policy with the below commands:
-```
-dcgpofix /target:both
-gpupdate /force
-```
-
-## Powershell
-
-### Useful Cmdlets
-
-* get-localuser : Lists local users on the system
-* get-aduser -Filter "*" : lists domain users
-* get-adcomputer -Filter "*" -properties IPv4Address : lists domain computers
-* get-process : Lists currently running processes
-* get-nettcpconnection : Lists currently listening/established TCP channels
-* get-netudpendpoint : Lists currenrly listening UDP endpoints
-* get-childitem -force : Lists all items (including hidden) in the current directory
-
-### Sample Commands
-
-List all processes owned by SYSTEM that are listening for network connections:
-```powershell
-Get-process -IncludeUsername |
-foreach {
-    if ($_.UserName -like "*SYSTEM*") {
-        $con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id;
-        if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}
-    }
-}
-```
-
-Output event logs for all Domain Admins to a csv file.
-```powershell
-get-localgroupmember Administrators | foreach {get-eventlog system -username $_.Name | export-csv “logs.csv”}
-```
-
-List all domain members and their IPs.
-```powershell
-$members = get-adcomputer -filter * -properties IPv4Address;
-```
+4.  Monitor the Event Logs for unexpected activity.
 
 # Services
 
@@ -850,7 +671,7 @@ DROP USER '<USERNAME>'@'<HOST>';
 
 ## SSH
 
-1.  You can tunnel a port over ssh with the following syntax:
+1.  You can tunnel a port over ssh with the following syntax:  
     `ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>`
 
 ## Web Servers
@@ -880,4 +701,66 @@ disable_functions=exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl
 file_uploads=off
 allow_url_fopen=off
 allow_url_include=off
+```
+
+# Appendix
+
+## Helpful Windows Utilities
+
+**NOTE** If using powershell to curl, you will need to run the following to enable TLS:  
+`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+
+1.  For package management (Scoop):
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+2.  For system logging and monitoring:
+    [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip)  
+    [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml)  
+    [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)  
+
+3.  For antivirus scanning:  
+    [Microsoft Safety Scanner](https://go.microsoft.com/fwlink/?LinkId=212732) (portable)  
+    [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)  
+
+4.  For environment auditing:
+    [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip)
+
+## Active Directory Reference
+
+### Hardening
+
+1.  The krbtgt password should be reset periodically with this [password reset script](https://github.com/microsoft/New-KrbtgtKeys.ps1).
+
+2.  You can force a reset of domain group policy with the below commands:
+```powershell
+dcgpofix /target:both
+gpupdate /force
+```
+
+## Powershell Reference
+
+### Useful Cmdlets
+
+* get-localuser : Lists local users on the system
+* get-aduser -Filter "*" : lists domain users
+* get-adcomputer -Filter "*" -properties IPv4Address : lists domain computers
+* get-process : Lists currently running processes
+* get-nettcpconnection : Lists currently listening/established TCP channels
+* get-netudpendpoint : Lists currenrly listening UDP endpoints
+* get-childitem -force : Lists all items (including hidden) in the current directory
+
+### Sample Commands
+
+List all processes owned by SYSTEM that are listening for network connections:
+```powershell
+Get-process -IncludeUsername |
+foreach {
+    if ($_.UserName -like "*SYSTEM*") {
+        $con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id;
+        if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}
+    }
+}
 ```
